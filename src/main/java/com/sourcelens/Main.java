@@ -1,5 +1,6 @@
 package com.sourcelens;
 
+import com.sourcelens.command.IndexCommand;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import picocli.CommandLine;
@@ -10,7 +11,7 @@ import picocli.CommandLine.Command;
     mixinStandardHelpOptions = true,
     version = "0.1.0",
     description = "Static call-graph analysis and Mermaid sequence diagram generation for Java projects.",
-    subcommands = { CommandLine.HelpCommand.class }
+    subcommands = { IndexCommand.class, CommandLine.HelpCommand.class }
 )
 public class Main implements Runnable {
 

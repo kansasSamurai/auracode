@@ -1,2 +1,7 @@
 
+# Maven
 target/
+
+# Where I store the database when testing
+db/
+
