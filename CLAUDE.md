@@ -4,7 +4,7 @@
 
 - **Context:** Senior Java Architect (30+ years exp).
 - **Core Principle:** High-craft software engineering. Explicit > Magic.
-- **Tech Stack:** Java 17+, Spring Boot, Maven.
+- **Tech Stack:** Java 17+, Maven (no Spring Boot — lean Picocli CLI).
 
 ## Architectural Principles
 
@@ -45,7 +45,7 @@ At the start of every session, Claude must ask:
 
 - **Build:** `./mvnw clean install`
 - **Test:** `./mvnw test`
-- **Run CLI:** `./mvnw exec:java -Dexec.mainClass="com.sourcelet.Main"`
+- **Run CLI:** `./mvnw exec:java -Dexec.mainClass="com.sourcelens.Main"`
 
 ## Technical Debt Ledger (Reference ROADMAP.md)
 
