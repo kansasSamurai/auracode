@@ -78,7 +78,7 @@ UserController#getUser → UserServiceImpl#findById → UserMapper#selectById
 | ID | Description |
 |----|-------------|
 | ~~DEBT-001~~ | ~~Nested/anonymous class FQNs are incorrect~~ — **resolved** |
-| DEBT-002 | External-library callee FQNs unresolved without full classpath |
+| DEBT-002 | External-library callee FQNs degrade to `scope#method(?)` — no impact when tracing within own project source. Edge case: library callback/template patterns (e.g. `JdbcTemplate` + `RowMapper`) that call back into user code will break the chain. Deferred to Phase 2. |
 | DEBT-003 | `CallGraphDb` has no connection pooling — single connection, single-threaded only |
 | DEBT-004 | `IndexCommand` input validation uses plain `if` — replace with `Assert` in hardening |
 
