@@ -56,7 +56,7 @@
 
 | ID | Description | Created | Resolved |
 |----|-------------|---------|----------|
-| DEBT-001 | Nested/anonymous class FQNs incorrect — caller FQN derived from top-level class only | 2026-04-13 | — |
+| DEBT-001 | Nested/anonymous class FQNs incorrect — caller FQN derived from top-level class only | 2026-04-13 | 2026-04-13 |
 | DEBT-002 | External-library callee FQNs unresolved — `JavaParserTypeSolver` only covers source root | 2026-04-13 | — |
 | DEBT-003 | `CallGraphDb` has no connection pooling — single connection, single-threaded only | 2026-04-13 | — |
 | DEBT-004 | `IndexCommand` input validation uses plain `if` — replace with `Assert` in hardening pass | 2026-04-13 | — |

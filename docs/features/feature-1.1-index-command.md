@@ -45,7 +45,16 @@ CREATE TABLE call_edge (
 
 `<package>.<ClassName>#<methodName>(<paramType1>, <paramType2>)`
 
-Example: `com.example.service.UserServiceImpl#findById(Long)`
+Examples:
+
+| Class type | FQN |
+|------------|-----|
+| Top-level class | `com.example.service.UserServiceImpl#findById(Long)` |
+| Named nested class | `com.example.util.UserSorter$ByUsername#compare(User, User)` |
+| Anonymous class | `com.example.util.UserSorter$anonymous:22#compare(User, User)` |
+
+Outer class names and anonymous class markers are separated by `$`, matching Java's class-file
+naming convention. Anonymous classes include the source line number for disambiguation.
 
 ## Symbol Resolution
 
@@ -68,7 +77,7 @@ UserController#getUser → UserServiceImpl#findById → UserMapper#selectById
 
 | ID | Description |
 |----|-------------|
-| DEBT-001 | Nested/anonymous class FQNs are incorrect — caller derived from top-level class only |
+| ~~DEBT-001~~ | ~~Nested/anonymous class FQNs are incorrect~~ — **resolved** |
 | DEBT-002 | External-library callee FQNs unresolved without full classpath |
 | DEBT-003 | `CallGraphDb` has no connection pooling — single connection, single-threaded only |
 | DEBT-004 | `IndexCommand` input validation uses plain `if` — replace with `Assert` in hardening |

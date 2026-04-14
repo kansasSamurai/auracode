@@ -4,9 +4,12 @@ import com.github.javaparser.ParserConfiguration;
 import com.github.javaparser.ParserConfiguration.LanguageLevel;
 import com.github.javaparser.StaticJavaParser;
 import com.github.javaparser.ast.CompilationUnit;
+import com.github.javaparser.ast.Node;
 import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
+import com.github.javaparser.ast.body.EnumDeclaration;
 import com.github.javaparser.ast.body.MethodDeclaration;
 import com.github.javaparser.ast.expr.MethodCallExpr;
+import com.github.javaparser.ast.expr.ObjectCreationExpr;
 import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
 import com.github.javaparser.resolution.UnsolvedSymbolException;
 import com.github.javaparser.symbolsolver.JavaSymbolSolver;
@@ -20,7 +23,9 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Deque;
 import java.util.List;
 import java.util.stream.Stream;
 
@@ -124,14 +129,11 @@ public class SourceIndexer {
         // ------------------------------------------------------------------
 
         private String buildCallerFqn(MethodDeclaration n) {
-            // TODO: [DEBT-001] nested/anonymous classes yield wrong FQN — top-level class only
             String pkg = cu.getPackageDeclaration()
                 .map(pd -> pd.getNameAsString() + ".")
                 .orElse("");
 
-            String className = n.findAncestor(ClassOrInterfaceDeclaration.class)
-                .map(c -> c.getNameAsString())
-                .orElse("<unknown>");
+            String className = buildEnclosingClassName(n);
 
             String paramTypes = n.getParameters().stream()
                 .map(p -> p.getType().asString())
@@ -139,6 +141,35 @@ public class SourceIndexer {
                 .orElse("");
 
             return pkg + className + "#" + n.getNameAsString() + "(" + paramTypes + ")";
+        }
+
+        /**
+         * Walks all ancestor nodes to build a fully-qualified class name that includes
+         * outer class names and anonymous class markers.
+         *
+         * Examples:
+         *   Outer.Inner method  →  "Outer$Inner"
+         *   anonymous class     →  "Outer$anonymous:42"  (42 = source line)
+         *   enum inner class    →  "MyEnum$Inner"
+         */
+        private static String buildEnclosingClassName(Node startNode) {
+            Deque<String> parts = new ArrayDeque<>();
+            Node current = startNode.getParentNode().orElse(null);
+            while (current != null) {
+                if (current instanceof ClassOrInterfaceDeclaration cid) {
+                    parts.addFirst(cid.getNameAsString());
+                } else if (current instanceof EnumDeclaration ed) {
+                    parts.addFirst(ed.getNameAsString());
+                } else if (current instanceof ObjectCreationExpr oce
+                        && oce.getAnonymousClassBody().isPresent()) {
+                    String line = oce.getBegin()
+                        .map(p -> String.valueOf(p.line))
+                        .orElse("?");
+                    parts.addFirst("anonymous:" + line);
+                }
+                current = current.getParentNode().orElse(null);
+            }
+            return parts.isEmpty() ? "<unknown>" : String.join("$", parts);
         }
 
         private String resolveCallee(MethodCallExpr n) {
