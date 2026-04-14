@@ -36,6 +36,7 @@
 | 2.2 | **Exclusion filters** — `--exclude` glob patterns to skip test sources, generated code, etc. | `[ ]` | |
 | 2.3 | **Top-down trace mode** — instead of starting from an entry point, trace all callers of a method upward | `[~]` | Inverse call graph; `--callers` flag on `trace`; `--split` splits output by root caller into separate Mermaid blocks; prototype heuristic in place |
 | 2.4 | **Multiple output formats** — `--format mermaid|dot|json` | `[ ]` | JSON useful for downstream tooling |
+| 2.5 | **Config file support** — load default options (db path, depth, log location, exclusion patterns, etc.) from a `sourcelens.yml` or `.sourcelens` config file in the project root or user home; CLI flags override file values | `[ ]` | Enables per-project defaults without long flag lists; design must consider overlap with DEBT-011 (interface→impl mappings) and Feature 3.2 (Spring XML) |
 
 ---
 
