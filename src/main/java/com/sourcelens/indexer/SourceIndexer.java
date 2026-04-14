@@ -143,7 +143,7 @@ public class SourceIndexer {
 
         private String resolveCallee(MethodCallExpr n) {
             try {
-                return n.resolve().getQualifiedSignature();
+                return normalizeSignature(n.resolve().getQualifiedSignature());
             } catch (UnsolvedSymbolException | UnsupportedOperationException e) {
                 // TODO: [DEBT-002] external-lib callee FQNs unresolved without full classpath
                 String scope = n.getScope()
@@ -157,6 +157,35 @@ public class SourceIndexer {
                     .orElse("<unknown>");
                 return scope + "#" + n.getNameAsString() + "(?)";
             }
+        }
+
+        /**
+         * Converts a JavaParser qualified signature to the buildCallerFqn format:
+         *   "pkg.Class.method(pkg.Type1, pkg.Type2)"  →  "pkg.Class#method(Type1, Type2)"
+         */
+        private static String normalizeSignature(String sig) {
+            int paren = sig.indexOf('(');
+            if (paren < 0) return sig;
+
+            String classAndMethod = sig.substring(0, paren);
+            String paramStr = sig.substring(paren + 1, sig.length() - 1);
+
+            int lastDot = classAndMethod.lastIndexOf('.');
+            String normalized = lastDot < 0
+                    ? classAndMethod
+                    : classAndMethod.substring(0, lastDot) + '#' + classAndMethod.substring(lastDot + 1);
+
+            if (paramStr.isEmpty()) return normalized + "()";
+
+            String[] parts = paramStr.split(",\\s*");
+            StringBuilder sb = new StringBuilder(normalized).append('(');
+            for (int i = 0; i < parts.length; i++) {
+                String p = parts[i].trim();
+                int dot = p.lastIndexOf('.');
+                sb.append(dot < 0 ? p : p.substring(dot + 1));
+                if (i < parts.length - 1) sb.append(", ");
+            }
+            return sb.append(')').toString();
         }
     }
 }

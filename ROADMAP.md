@@ -22,7 +22,7 @@
 | # | Feature | Status | Notes |
 |---|---------|--------|-------|
 | 1.1 | **`index` command** — walk a source tree, parse Java files with JavaParser, persist method-call edges to SQLite | `[x]` | Use `LanguageLevel.JAVA_8` for legacy project compatibility |
-| 1.2 | **`trace` command** — given an entry-point method, query the SQLite call-graph and produce an ordered call chain | `[ ]` | Depth-first traversal with cycle detection |
+| 1.2 | **`trace` command** — given an entry-point method, query the SQLite call-graph and produce an ordered call chain | `[x]` | Depth-first traversal with cycle detection |
 | 1.3 | **`render` command** — convert a call chain to a Mermaid `sequenceDiagram` block and write to stdout or file | `[ ]` | Honour ADR-003 (Mermaid over PlantUML) |
 | 1.4 | **Integration test** — end-to-end test against a sample Java 8 project fixture | `[ ]` | Validates index → trace → render pipeline |
 
@@ -60,6 +60,9 @@
 | DEBT-002 | External-library callee FQNs unresolved — `JavaParserTypeSolver` only covers source root | 2026-04-13 | — |
 | DEBT-003 | `CallGraphDb` has no connection pooling — single connection, single-threaded only | 2026-04-13 | — |
 | DEBT-004 | `IndexCommand` input validation uses plain `if` — replace with `Assert` in hardening pass | 2026-04-13 | — |
+| DEBT-005 | No `TraceService` interface — DFS logic is inlined in `TraceCommand`; extract in hardening | 2026-04-13 | — |
+| DEBT-006 | `TraceCommand --entry` requires exact FQN match — add substring/fuzzy lookup in hardening | 2026-04-13 | — |
+| DEBT-007 | Interface dispatch bridge is a suffix-match heuristic — replace with proper class-hierarchy walk in hardening | 2026-04-13 | — |
 
 ---
 
