@@ -92,6 +92,48 @@ class PipelineIntegrationTest {
                 "Diagram should contain UserServiceImpl → UserMapper edge");
     }
 
+    @Test
+    void inverseTrace_userMapperSelectById_producesUpstreamEdges(
+            @TempDir Path tempDir) throws IOException {
+
+        Path dbFile    = tempDir.resolve("test.db");
+        Path traceFile = tempDir.resolve("inverse-trace.txt");
+
+        // ------------------------------------------------------------------
+        // Step 1: index (same fixture)
+        // ------------------------------------------------------------------
+        int indexExit = cli("index",
+                "--source", FIXTURE_SOURCE.toString(),
+                "--db",     dbFile.toString());
+
+        assertEquals(0, indexExit, "index command should exit 0");
+
+        // ------------------------------------------------------------------
+        // Step 2: inverse trace from the deepest node
+        // ------------------------------------------------------------------
+        int traceExit = cli("trace",
+                "--entry",   "com.example.mapper.UserMapper#selectById(Long)",
+                "--db",      dbFile.toString(),
+                "--callers",
+                "--output",  traceFile.toString());
+
+        assertEquals(0, traceExit, "inverse trace command should exit 0");
+        assertTrue(Files.exists(traceFile), "Inverse trace output file should be created");
+
+        String trace = Files.readString(traceFile);
+        assertFalse(trace.isBlank(), "Inverse trace output should not be empty");
+
+        // Direct caller: UserServiceImpl calls UserMapper
+        assertTrue(trace.contains(
+                "com.example.service.UserServiceImpl#findById(Long) -> com.example.mapper.UserMapper#selectById(Long)"),
+                "Trace should contain direct caller edge: UserServiceImpl -> UserMapper");
+
+        // Upstream via heuristic: UserController calls UserServiceImpl (stored against interface)
+        assertTrue(trace.contains(
+                "com.example.controller.UserController#getUser(Long) -> com.example.service.UserServiceImpl#findById(Long)"),
+                "Trace should contain upstream edge: UserController -> UserServiceImpl");
+    }
+
     // -------------------------------------------------------------------------
 
     private static int cli(String... args) {

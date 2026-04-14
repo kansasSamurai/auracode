@@ -39,6 +39,10 @@ public class TraceCommand implements Runnable {
             description = "Maximum DFS traversal depth (default: 50).")
     private int maxDepth;
 
+    @Option(names = {"--callers"},
+            description = "Inverse mode: trace all callers of --entry upward (default: false).")
+    private boolean callers;
+
     @Override
     public void run() {
         Assert.fileExists(dbPath, "Database not found — run 'index' first: " + dbPath.toAbsolutePath());
@@ -53,7 +57,11 @@ public class TraceCommand implements Runnable {
 
             // TODO: [DEBT-005] extract DFS into a TraceService interface + DefaultTraceService in hardening
             Set<String> visited = new LinkedHashSet<>();
-            traverse(entryFqn, db, maxDepth, visited, writer);
+            if (callers) {
+                traverseCallers(entryFqn, db, maxDepth, visited, writer);
+            } else {
+                traverse(entryFqn, db, maxDepth, visited, writer);
+            }
 
             log.info("Trace complete — {} unique methods visited, {} edges emitted",
                     visited.size(), visited.size() > 0 ? visited.size() - 1 : 0);
@@ -84,6 +92,31 @@ public class TraceCommand implements Runnable {
                 writer.println(fqn + " -> " + target);
                 traverse(target, db, depth - 1, visited, writer);
             }
+        }
+    }
+
+    private void traverseCallers(String fqn, CallGraphDb db, int depth, Set<String> visited, PrintWriter writer) {
+        if (depth <= 0) {
+            log.warn("Max traversal depth reached at '{}'", fqn);
+            return;
+        }
+        if (visited.contains(fqn)) {
+            return; // cycle detected — silently skip
+        }
+        visited.add(fqn);
+
+        List<String> directCallers = db.getCallerFqns(fqn);
+
+        // TODO: [DEBT-010] prototype heuristic — callers may have stored calls against
+        //   an interface FQN; fall back to suffix-match if no direct callers found.
+        //   See also DEBT-011 for the deferred config-file mapping approach.
+        List<String> effectiveCallers = directCallers.isEmpty()
+                ? db.findInterfaceCallerFqns(fqn)
+                : directCallers;
+
+        for (String caller : effectiveCallers) {
+            writer.println(caller + " -> " + fqn);
+            traverseCallers(caller, db, depth - 1, visited, writer);
         }
     }
 

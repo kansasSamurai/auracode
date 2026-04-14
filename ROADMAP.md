@@ -24,7 +24,7 @@
 | 1.1 | **`index` command** — walk a source tree, parse Java files with JavaParser, persist method-call edges to SQLite | `[x]` | Use `LanguageLevel.JAVA_8` for legacy project compatibility |
 | 1.2 | **`trace` command** — given an entry-point method, query the SQLite call-graph and produce an ordered call chain | `[x]` | Depth-first traversal with cycle detection |
 | 1.3 | **`render` command** — convert a call chain to a Mermaid `sequenceDiagram` block and write to stdout or file | `[x]` | Honour ADR-003 (Mermaid over PlantUML) |
-| 1.4 | **Integration test** — end-to-end test against a sample Java 8 project fixture | `[~]` | Validates index → trace → render pipeline |
+| 1.4 | **Integration test** — end-to-end test against a sample Java 8 project fixture | `[x]` | Validates index → trace → render pipeline |
 
 ---
 
@@ -34,7 +34,7 @@
 |---|---------|--------|-------|
 | 2.1 | **Delta re-indexing** — only re-parse files changed since last index run (use file mtime / SHA) | `[ ]` | Reduces indexing time on large codebases |
 | 2.2 | **Exclusion filters** — `--exclude` glob patterns to skip test sources, generated code, etc. | `[ ]` | |
-| 2.3 | **Top-down trace mode** — instead of starting from an entry point, trace all callers of a method upward | `[ ]` | Inverse call graph |
+| 2.3 | **Top-down trace mode** — instead of starting from an entry point, trace all callers of a method upward | `[~]` | Inverse call graph; `--callers` flag on `trace`; prototype heuristic in place |
 | 2.4 | **Multiple output formats** — `--format mermaid|dot|json` | `[ ]` | JSON useful for downstream tooling |
 
 ---
@@ -65,6 +65,8 @@
 | DEBT-007 | Interface dispatch bridge is a suffix-match heuristic — replace with proper class-hierarchy walk in hardening | 2026-04-13 | — |
 | DEBT-008 | `RenderCommand` uses simple class name as participant — two classes with the same simple name in different packages will collide; use aliased FQN in hardening | 2026-04-13 | — |
 | DEBT-009 | No `RenderService` interface — rendering logic is inlined in `RenderCommand`; extract in hardening | 2026-04-13 | — |
+| DEBT-010 | `findInterfaceCallerFqns` is a suffix-match prototype heuristic — replace with proper class-hierarchy walk in hardening (mirrors DEBT-007 for forward trace) | 2026-04-13 | — |
+| DEBT-011 | No config-file mechanism for explicit interface→impl mappings; deferred to hardening — design must cover file format, `interface_mapping` table, load point, and overlap with Feature 3.2 Spring XML bridge | 2026-04-13 | — |
 
 ---
 
