@@ -23,8 +23,8 @@
 |---|---------|--------|-------|
 | 1.1 | **`index` command** — walk a source tree, parse Java files with JavaParser, persist method-call edges to SQLite | `[x]` | Use `LanguageLevel.JAVA_8` for legacy project compatibility |
 | 1.2 | **`trace` command** — given an entry-point method, query the SQLite call-graph and produce an ordered call chain | `[x]` | Depth-first traversal with cycle detection |
-| 1.3 | **`render` command** — convert a call chain to a Mermaid `sequenceDiagram` block and write to stdout or file | `[~]` | Honour ADR-003 (Mermaid over PlantUML) |
-| 1.4 | **Integration test** — end-to-end test against a sample Java 8 project fixture | `[ ]` | Validates index → trace → render pipeline |
+| 1.3 | **`render` command** — convert a call chain to a Mermaid `sequenceDiagram` block and write to stdout or file | `[x]` | Honour ADR-003 (Mermaid over PlantUML) |
+| 1.4 | **Integration test** — end-to-end test against a sample Java 8 project fixture | `[~]` | Validates index → trace → render pipeline |
 
 ---
 
