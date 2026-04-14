@@ -27,6 +27,7 @@ sourcelens trace \
 | Option | Description |
 |--------|-------------|
 | `--callers` | Inverse mode: trace all callers of `--entry` upward |
+| `--split` | Split output by root caller — one section per independent call chain (use with `--callers`) |
 | `--entry` | FQN of the *target* method (deepest node you're interested in) |
 | `--db` | SQLite database produced by `index` |
 | `--output` | Optional file; defaults to stdout |
@@ -54,6 +55,47 @@ single-implementation cases.
 **DEBT-011 (deferred):** A config-file approach to supply explicit interface→impl
 mappings was discussed and deferred to hardening. The suffix heuristic is sufficient
 for prototype.
+
+### Split by Root Callers (`--callers --split`)
+
+When `--split` is active the output is partitioned into one section per *root caller* —
+a node that appears in the inverse subgraph but has no further callers of its own. Each
+root corresponds to a distinct entry point / use case.
+
+**Algorithm (two-pass):**
+
+*Pass 1* — collect the full inverse subgraph into `Map<callee, List<caller>>` using the
+same DFS + interface-caller heuristic as plain `--callers`.
+
+*Pass 2* — invert to `Map<caller, List<callee>>`, find roots (nodes that are callers
+but not callees within the subgraph), then DFS forward from each root emitting a
+labelled section:
+
+```
+=== <root FQN> ===
+caller -> callee
+caller -> callee
+...
+=== <next root FQN> ===
+...
+```
+
+The `render` command recognises `=== <FQN> ===` section headers and produces one
+fenced `mermaid` block per section, each preceded by a `## <label>` Markdown heading.
+
+**Example** (`UserMapper#selectById` with mybatis-sample fixture):
+
+```
+=== com.example.controller.UserController#getUser(Long) ===
+com.example.controller.UserController#getUser(Long) -> com.example.service.UserServiceImpl#findById(Long)
+com.example.service.UserServiceImpl#findById(Long) -> com.example.mapper.UserMapper#selectById(Long)
+=== com.example.controller.UserController#createUser(String, String) ===
+com.example.controller.UserController#createUser(String, String) -> com.example.service.UserServiceImpl#createUser(String, String)
+com.example.service.UserServiceImpl#createUser(String, String) -> com.example.mapper.UserMapper#selectById(Long)
+=== com.example.controller.UserController#updateEmail(Long, String) ===
+com.example.controller.UserController#updateEmail(Long, String) -> com.example.service.UserServiceImpl#updateEmail(Long, String)
+com.example.service.UserServiceImpl#updateEmail(Long, String) -> com.example.mapper.UserMapper#selectById(Long)
+```
 
 ```
 traverseCallers(fqn):
@@ -102,24 +144,26 @@ java -jar target/sourcelens.jar index \
   --source test-fixtures/mybatis-sample/src \
   --db db/mybatis.db
 
-# Inverse trace from the deepest node
+# Flat inverse trace (original behaviour)
 java -jar target/sourcelens.jar trace \
   --entry "com.example.mapper.UserMapper#selectById(Long)" \
   --db db/mybatis.db \
   --callers
 
-# Expected stdout (order may vary):
-# com.example.service.UserServiceImpl#findById(Long) -> com.example.mapper.UserMapper#selectById(Long)
-# com.example.controller.UserController#getUser(Long) -> com.example.service.UserServiceImpl#findById(Long)
-
-# Pipe directly into render to see the upstream diagram
+# Split inverse trace — 3 sections, one per root controller method
 java -jar target/sourcelens.jar trace \
   --entry "com.example.mapper.UserMapper#selectById(Long)" \
   --db db/mybatis.db \
-  --callers | \
+  --callers --split
+
+# Pipe split trace into render — produces 3 labelled Mermaid diagrams
+java -jar target/sourcelens.jar trace \
+  --entry "com.example.mapper.UserMapper#selectById(Long)" \
+  --db db/mybatis.db \
+  --callers --split | \
   java -jar target/sourcelens.jar render
 
 # Run tests
 ./mvnw test
-# Expected: Tests run: 7, Failures: 0, Errors: 0, Skipped: 0
+# Expected: Tests run: 8, Failures: 0, Errors: 0, Skipped: 0
 ```

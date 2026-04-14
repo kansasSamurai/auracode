@@ -10,9 +10,14 @@ import picocli.CommandLine.Option;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 @Command(
     name = "trace",
@@ -43,6 +48,10 @@ public class TraceCommand implements Runnable {
             description = "Inverse mode: trace all callers of --entry upward (default: false).")
     private boolean callers;
 
+    @Option(names = {"--split"},
+            description = "Split output by root caller: one section per independent call chain. Use with --callers.")
+    private boolean split;
+
     @Override
     public void run() {
         Assert.fileExists(dbPath, "Database not found — run 'index' first: " + dbPath.toAbsolutePath());
@@ -57,7 +66,9 @@ public class TraceCommand implements Runnable {
 
             // TODO: [DEBT-005] extract DFS into a TraceService interface + DefaultTraceService in hardening
             Set<String> visited = new LinkedHashSet<>();
-            if (callers) {
+            if (callers && split) {
+                traverseCallersSplit(entryFqn, db, maxDepth, writer);
+            } else if (callers) {
                 traverseCallers(entryFqn, db, maxDepth, visited, writer);
             } else {
                 traverse(entryFqn, db, maxDepth, visited, writer);
@@ -117,6 +128,66 @@ public class TraceCommand implements Runnable {
         for (String caller : effectiveCallers) {
             writer.println(caller + " -> " + fqn);
             traverseCallers(caller, db, depth - 1, visited, writer);
+        }
+    }
+
+    private void traverseCallersSplit(String targetFqn, CallGraphDb db, int maxDepth, PrintWriter writer) {
+        // Pass 1: collect full inverse subgraph as Map<callee, List<caller>>
+        Map<String, List<String>> inverseAdj = new LinkedHashMap<>();
+        collectInverseGraph(targetFqn, db, maxDepth, new HashSet<>(), inverseAdj);
+
+        // Pass 2: build forward adjacency (caller -> callees) within the subgraph
+        Map<String, List<String>> forwardAdj = new LinkedHashMap<>();
+        Set<String> allCallees = new HashSet<>();
+        for (Map.Entry<String, List<String>> entry : inverseAdj.entrySet()) {
+            String callee = entry.getKey();
+            for (String caller : entry.getValue()) {
+                forwardAdj.computeIfAbsent(caller, k -> new ArrayList<>()).add(callee);
+                allCallees.add(callee);
+            }
+        }
+
+        // Roots: appear as callers but not as callees within the subgraph
+        List<String> roots = forwardAdj.keySet().stream()
+                .filter(n -> !allCallees.contains(n))
+                .collect(Collectors.toList());
+
+        if (roots.isEmpty()) {
+            log.warn("No root callers found for '{}' — emitting flat output.", targetFqn);
+            traverseCallers(targetFqn, db, maxDepth, new LinkedHashSet<>(), writer);
+            return;
+        }
+
+        log.info("Split trace: {} root caller(s) found for '{}'.", roots.size(), targetFqn);
+        for (String root : roots) {
+            writer.println("=== " + root + " ===");
+            emitChain(root, forwardAdj, new LinkedHashSet<>(), writer);
+        }
+    }
+
+    private void collectInverseGraph(String fqn, CallGraphDb db, int depth,
+                                     Set<String> visited,
+                                     Map<String, List<String>> inverseAdj) {
+        if (depth <= 0 || visited.contains(fqn)) return;
+        visited.add(fqn);
+
+        List<String> direct = db.getCallerFqns(fqn);
+        // TODO: [DEBT-010] interface-caller heuristic — fall back to suffix-match
+        List<String> effective = direct.isEmpty() ? db.findInterfaceCallerFqns(fqn) : direct;
+
+        inverseAdj.put(fqn, effective);
+        for (String caller : effective) {
+            collectInverseGraph(caller, db, depth - 1, visited, inverseAdj);
+        }
+    }
+
+    private void emitChain(String node, Map<String, List<String>> forwardAdj,
+                            Set<String> visited, PrintWriter writer) {
+        if (visited.contains(node)) return;
+        visited.add(node);
+        for (String callee : forwardAdj.getOrDefault(node, List.of())) {
+            writer.println(node + " -> " + callee);
+            emitChain(callee, forwardAdj, visited, writer);
         }
     }
 

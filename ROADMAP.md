@@ -34,7 +34,7 @@
 |---|---------|--------|-------|
 | 2.1 | **Delta re-indexing** — only re-parse files changed since last index run (use file mtime / SHA) | `[ ]` | Reduces indexing time on large codebases |
 | 2.2 | **Exclusion filters** — `--exclude` glob patterns to skip test sources, generated code, etc. | `[ ]` | |
-| 2.3 | **Top-down trace mode** — instead of starting from an entry point, trace all callers of a method upward | `[~]` | Inverse call graph; `--callers` flag on `trace`; prototype heuristic in place |
+| 2.3 | **Top-down trace mode** — instead of starting from an entry point, trace all callers of a method upward | `[~]` | Inverse call graph; `--callers` flag on `trace`; `--split` splits output by root caller into separate Mermaid blocks; prototype heuristic in place |
 | 2.4 | **Multiple output formats** — `--format mermaid|dot|json` | `[ ]` | JSON useful for downstream tooling |
 
 ---

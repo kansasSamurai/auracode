@@ -44,34 +44,29 @@ public class RenderCommand implements Runnable {
              PrintWriter writer = openWriter()) {
 
             // TODO: [DEBT-009] extract rendering logic into RenderService interface + DefaultRenderService in hardening
-            List<String[]> edges = new ArrayList<>();
-            Set<String> participants = new LinkedHashSet<>();
-
+            List<String> allLines = new ArrayList<>();
             String line;
             while ((line = reader.readLine()) != null) {
-                line = line.trim();
-                if (line.isEmpty()) continue;
+                allLines.add(line);
+            }
 
-                int sep = line.indexOf(" -> ");
-                if (sep < 0) {
-                    log.debug("Skipping malformed line: {}", line);
-                    continue;
+            List<Section> sections = parseSections(allLines);
+            for (int i = 0; i < sections.size(); i++) {
+                Section section = sections.get(i);
+                if (section.label != null) {
+                    writer.println("## " + toParticipant(section.label) + ": " + toMessage(section.label));
+                    writer.println();
                 }
-
-                String callerFqn = line.substring(0, sep).trim();
-                String calleeFqn = line.substring(sep + 4).trim();
-
-                participants.add(toParticipant(callerFqn));
-                participants.add(toParticipant(calleeFqn));
-                edges.add(new String[]{callerFqn, calleeFqn});
+                if (section.edges.isEmpty()) {
+                    log.warn("Section '{}' has no edges — emitting empty diagram.",
+                            section.label != null ? section.label : "(default)");
+                }
+                writeDiagram(section.edges, section.participants, writer);
+                if (sections.size() > 1 && i < sections.size() - 1) {
+                    writer.println(); // blank line between blocks
+                }
             }
-
-            if (edges.isEmpty()) {
-                log.warn("No edges in input — emitting empty diagram.");
-            }
-
-            writeDiagram(edges, participants, writer);
-            log.info("Rendered {} edge(s), {} participant(s).", edges.size(), participants.size());
+            log.info("Rendered {} section(s).", sections.size());
 
         } catch (IOException e) {
             throw new RuntimeException("I/O error during render: " + e.getMessage(), e);
@@ -95,6 +90,62 @@ public class RenderCommand implements Runnable {
             w.println("    " + from + "->>" + to + ": " + msg);
         }
         w.println("```");
+    }
+
+    // -------------------------------------------------------------------------
+    // Multi-section support
+    // -------------------------------------------------------------------------
+
+    private static class Section {
+        final String label; // root FQN from "=== <fqn> ===" header, or null for single-section input
+        final List<String[]> edges = new ArrayList<>();
+        final Set<String> participants = new LinkedHashSet<>();
+
+        Section(String label) {
+            this.label = label;
+        }
+    }
+
+    /**
+     * Splits input lines into sections on {@code === <fqn> ===} headers.
+     * If no headers are found, returns a single section with label=null (backward compatible).
+     */
+    private static List<Section> parseSections(List<String> lines) {
+        List<Section> sections = new ArrayList<>();
+        Section current = null;
+
+        for (String raw : lines) {
+            String line = raw.trim();
+            if (line.isEmpty()) continue;
+
+            if (line.startsWith("===") && line.endsWith("===") && line.length() > 6) {
+                String label = line.substring(3, line.length() - 3).trim();
+                current = new Section(label);
+                sections.add(current);
+                continue;
+            }
+
+            if (current == null) {
+                // No header seen yet — treat all lines as a single unlabelled section
+                current = new Section(null);
+                sections.add(current);
+            }
+
+            int sep = line.indexOf(" -> ");
+            if (sep < 0) {
+                continue; // skip malformed lines
+            }
+            String callerFqn = line.substring(0, sep).trim();
+            String calleeFqn = line.substring(sep + 4).trim();
+            current.participants.add(toParticipant(callerFqn));
+            current.participants.add(toParticipant(calleeFqn));
+            current.edges.add(new String[]{callerFqn, calleeFqn});
+        }
+
+        if (sections.isEmpty()) {
+            sections.add(new Section(null)); // empty input — emit empty diagram
+        }
+        return sections;
     }
 
     // -------------------------------------------------------------------------
