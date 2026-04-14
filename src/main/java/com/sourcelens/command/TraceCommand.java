@@ -175,6 +175,11 @@ public class TraceCommand implements Runnable {
         // TODO: [DEBT-010] interface-caller heuristic — fall back to suffix-match
         List<String> effective = direct.isEmpty() ? db.findInterfaceCallerFqns(fqn) : direct;
 
+        // Filter self-references: findInterfaceCallerFqns can return fqn itself when
+        // the node calls an interface method sharing the same #method(params) suffix,
+        // and the caller of that interface method happens to be fqn itself.
+        effective = effective.stream().filter(c -> !c.equals(fqn)).collect(Collectors.toList());
+
         inverseAdj.put(fqn, effective);
         for (String caller : effective) {
             collectInverseGraph(caller, db, depth - 1, visited, inverseAdj);
