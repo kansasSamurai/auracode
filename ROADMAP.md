@@ -59,7 +59,7 @@
 | DEBT-001 | Nested/anonymous class FQNs incorrect — caller FQN derived from top-level class only | 2026-04-13 | 2026-04-13 |
 | DEBT-002 | External-library callee FQNs unresolved — only affects calls to 3rd-party libs (not user source); library calls degrade gracefully to `scope#method(?)`; edge case: library callback/template patterns (e.g. JdbcTemplate RowMapper) break the chain; deferred to Phase 2 | 2026-04-13 | deferred |
 | DEBT-003 | `CallGraphDb` has no connection pooling — not applicable for a CLI tool; pooling solves concurrent thread contention in long-running processes, which SourceLens is neither; single `try-with-resources` connection is the correct design; closed as deliberate | 2026-04-13 | n/a |
-| DEBT-004 | `IndexCommand` input validation uses plain `if` — replace with `Assert` in hardening pass | 2026-04-13 | — |
+| DEBT-004 | `IndexCommand` input validation uses plain `if` — replace with `Assert` in hardening pass | 2026-04-13 | 2026-04-13 |
 | DEBT-005 | No `TraceService` interface — DFS logic is inlined in `TraceCommand`; extract in hardening | 2026-04-13 | — |
 | DEBT-006 | `TraceCommand --entry` requires exact FQN match — add substring/fuzzy lookup in hardening | 2026-04-13 | — |
 | DEBT-007 | Interface dispatch bridge is a suffix-match heuristic — replace with proper class-hierarchy walk in hardening | 2026-04-13 | — |

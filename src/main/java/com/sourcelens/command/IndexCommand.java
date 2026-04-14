@@ -1,5 +1,6 @@
 package com.sourcelens.command;
 
+import com.sourcelens.Assert;
 import com.sourcelens.indexer.SourceIndexer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -25,11 +26,7 @@ public class IndexCommand implements Runnable {
 
     @Override
     public void run() {
-        // TODO: [DEBT-004] replace plain if-check with Assert utility in hardening pass
-        if (!sourcePath.toFile().isDirectory()) {
-            log.error("--source must be an existing directory: {}", sourcePath);
-            throw new IllegalArgumentException("Source path is not a directory: " + sourcePath);
-        }
+        Assert.isDirectory(sourcePath, "--source must be an existing directory: " + sourcePath);
 
         log.info("Indexing {} → {}", sourcePath.toAbsolutePath(), dbPath.toAbsolutePath());
         new SourceIndexer(dbPath).index(sourcePath);

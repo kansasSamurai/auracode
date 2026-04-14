@@ -1,5 +1,6 @@
 package com.sourcelens.command;
 
+import com.sourcelens.Assert;
 import com.sourcelens.db.CallGraphDb;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -40,19 +41,12 @@ public class TraceCommand implements Runnable {
 
     @Override
     public void run() {
-        // TODO: [DEBT-004] replace plain if-checks with Assert utility in hardening pass
-        if (!dbPath.toFile().exists()) {
-            log.error("Database not found — run 'index' first: {}", dbPath.toAbsolutePath());
-            throw new IllegalStateException("Database not found: " + dbPath);
-        }
+        Assert.fileExists(dbPath, "Database not found — run 'index' first: " + dbPath.toAbsolutePath());
 
         try (CallGraphDb db = new CallGraphDb(dbPath);
              PrintWriter writer = openWriter()) {
 
-            if (!db.nodeExists(entryFqn)) {
-                log.error("Entry method not found in index: {}", entryFqn);
-                throw new IllegalArgumentException("Entry method not found in index: " + entryFqn);
-            }
+            Assert.isTrue(db.nodeExists(entryFqn), "Entry method not found in index: " + entryFqn);
 
             log.info("Tracing from '{}' (maxDepth={}, db={})",
                     entryFqn, maxDepth, dbPath.toAbsolutePath());

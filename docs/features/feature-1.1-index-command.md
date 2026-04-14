@@ -80,7 +80,7 @@ UserController#getUser → UserServiceImpl#findById → UserMapper#selectById
 | ~~DEBT-001~~ | ~~Nested/anonymous class FQNs are incorrect~~ — **resolved** |
 | DEBT-002 | External-library callee FQNs degrade to `scope#method(?)` — no impact when tracing within own project source. Edge case: library callback/template patterns (e.g. `JdbcTemplate` + `RowMapper`) that call back into user code will break the chain. Deferred to Phase 2. |
 | ~~DEBT-003~~ | ~~`CallGraphDb` has no connection pooling~~ — **not applicable**. Pooling solves concurrent thread contention in long-running processes; SourceLens is neither. The JVM starts, one command executes, the process exits. The `try-with-resources` `AutoCloseable` pattern is the correct design. Closed as a deliberate decision. |
-| DEBT-004 | `IndexCommand` input validation uses plain `if` — replace with `Assert` in hardening |
+| ~~DEBT-004~~ | ~~`IndexCommand` input validation uses plain `if`~~ — **resolved** (`Assert` utility introduced) |
 
 ## Verification
 
