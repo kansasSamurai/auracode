@@ -8,8 +8,10 @@ import com.github.javaparser.ast.Node;
 import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
 import com.github.javaparser.ast.body.EnumDeclaration;
 import com.github.javaparser.ast.body.MethodDeclaration;
+import com.github.javaparser.ast.body.TypeDeclaration;
 import com.github.javaparser.ast.expr.MethodCallExpr;
 import com.github.javaparser.ast.expr.ObjectCreationExpr;
+import com.github.javaparser.ast.type.ClassOrInterfaceType;
 import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
 import com.github.javaparser.resolution.UnsolvedSymbolException;
 import com.github.javaparser.symbolsolver.JavaSymbolSolver;
@@ -46,8 +48,10 @@ public class SourceIndexer {
     public void index(Path sourcePath) {
         configureParser(sourcePath);
 
-        List<String[]> allEdges = new ArrayList<>();
-        List<String[]> allNodes = new ArrayList<>();
+        List<String[]> allClassNodes     = new ArrayList<>(); // [fqn, simpleName, packageName, isInterface]
+        List<String[]> allHierarchyEdges = new ArrayList<>(); // [childFqn, parentFqn, relation]
+        List<String[]> allNodes          = new ArrayList<>(); // [fqn, returnType, classFqn, methodName, params]
+        List<String[]> allEdges          = new ArrayList<>(); // [callerFqn, calleeFqn, callerReturnType]
         int fileCount = 0;
 
         try (Stream<Path> walk = Files.walk(sourcePath)) {
@@ -60,6 +64,7 @@ public class SourceIndexer {
                     CompilationUnit cu = StaticJavaParser.parse(file);
                     List<String[]> edges = new ArrayList<>();
                     List<String[]> nodes = new ArrayList<>();
+                    new ClassHierarchyVisitor(cu, allClassNodes, allHierarchyEdges).visit(cu, null);
                     new CallEdgeVisitor(cu, edges, nodes).visit(cu, null);
                     allEdges.addAll(edges);
                     allNodes.addAll(nodes);
@@ -74,6 +79,8 @@ public class SourceIndexer {
 
         try (CallGraphDb db = new CallGraphDb(dbPath)) {
             db.init();
+            db.persistClassNodes(allClassNodes);
+            db.persistClassHierarchy(allHierarchyEdges);
             db.persistNodes(allNodes);
             db.persistEdges(allEdges);
             long nodes = db.countNodes();
@@ -95,7 +102,75 @@ public class SourceIndexer {
     }
 
     // -------------------------------------------------------------------------
-    // Visitor
+    // Class hierarchy visitor
+    // -------------------------------------------------------------------------
+
+    /**
+     * Visits every top-level class and interface declaration in a compilation unit,
+     * recording the class metadata and its {@code implements}/{@code extends} relationships.
+     *
+     * <p>Nested classes (static inner classes, anonymous classes) are skipped: their
+     * parent types are typically external-library types (e.g. {@code Comparator}) that
+     * are not in the indexed source tree and would produce unresolvable hierarchy entries.
+     */
+    private static final class ClassHierarchyVisitor extends VoidVisitorAdapter<Void> {
+
+        private final CompilationUnit cu;
+        private final List<String[]> classNodes;      // [fqn, simpleName, packageName, isInterface]
+        private final List<String[]> hierarchyEdges;  // [childFqn, parentFqn, relation]
+
+        ClassHierarchyVisitor(CompilationUnit cu, List<String[]> classNodes, List<String[]> hierarchyEdges) {
+            this.cu = cu;
+            this.classNodes = classNodes;
+            this.hierarchyEdges = hierarchyEdges;
+        }
+
+        @Override
+        public void visit(ClassOrInterfaceDeclaration n, Void arg) {
+            // Skip nested classes — their parent is a TypeDeclaration, not a CompilationUnit
+            boolean isNested = n.getParentNode()
+                .map(p -> p instanceof TypeDeclaration)
+                .orElse(false);
+            if (isNested) {
+                super.visit(n, arg);
+                return;
+            }
+
+            String pkg = cu.getPackageDeclaration()
+                .map(pd -> pd.getNameAsString())
+                .orElse("");
+            String simpleName = n.getNameAsString();
+            String classFqn   = pkg.isEmpty() ? simpleName : pkg + "." + simpleName;
+            boolean isIface   = n.isInterface();
+
+            classNodes.add(new String[]{classFqn, simpleName, pkg, String.valueOf(isIface)});
+
+            addHierarchyEdges(classFqn, n.getImplementedTypes(), "IMPLEMENTS");
+            addHierarchyEdges(classFqn, n.getExtendedTypes(),    "EXTENDS");
+
+            super.visit(n, arg);
+        }
+
+        private void addHierarchyEdges(String childFqn,
+                                        Iterable<ClassOrInterfaceType> types,
+                                        String relation) {
+            for (ClassOrInterfaceType type : types) {
+                try {
+                    String parentFqn = type.resolve().asReferenceType().getQualifiedName();
+                    hierarchyEdges.add(new String[]{childFqn, parentFqn, relation});
+                } catch (UnsolvedSymbolException | UnsupportedOperationException e) {
+                    log.debug("Skipping unresolved {} type '{}' in {}",
+                            relation, type.getNameAsString(), childFqn);
+                } catch (Exception e) {
+                    log.debug("Skipping {} type '{}' in {}: {}",
+                            relation, type.getNameAsString(), childFqn, e.getMessage());
+                }
+            }
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // Call edge visitor
     // -------------------------------------------------------------------------
 
     /**
@@ -120,9 +195,16 @@ public class SourceIndexer {
 
         @Override
         public void visit(MethodDeclaration n, String[] ignored) {
-            String callerFqn    = buildCallerFqn(n);
-            String returnType   = n.getType().asString();   // e.g. "User", "void", "List<String>"
-            nodes.add(new String[]{callerFqn, returnType});
+            String callerFqn  = buildCallerFqn(n);
+            String returnType = n.getType().asString();
+            int hash = callerFqn.indexOf('#');
+            String classFqn   = hash >= 0 ? callerFqn.substring(0, hash) : callerFqn;
+            String methodName = n.getNameAsString();
+            String params     = n.getParameters().stream()
+                .map(p -> p.getType().asString())
+                .reduce((a, b) -> a + ", " + b)
+                .orElse("");
+            nodes.add(new String[]{callerFqn, returnType, classFqn, methodName, params});
             super.visit(n, new String[]{callerFqn, returnType});
         }
 

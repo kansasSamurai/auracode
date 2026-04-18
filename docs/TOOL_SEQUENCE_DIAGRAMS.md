@@ -630,3 +630,62 @@ A great goal for this week would be:
 Once you see that first SQL result showing a Service calling your Mapper, the rest is just recursive logic and Mermaid formatting.
 
 Good luck with the build! It’s satisfying to see a custom tool take shape, especially one that solves such a specific, high-value problem in a legacy environment. Since you're using **Maven**, do you have a favorite archetype or a "go-to" base POM you usually start from, or do you prefer to build it from scratch to keep it clean?
+
+===================================
+
+> 4/18/2026 - Understandably, this has started as a focused task regarding source code analysis.  As it is beginning to mature, I am realizing that the "power" in this tool is the analysis and storage in the [sqlite] database.  While the command line usage will absolutely be beneficial going forward, it might be time to think of: 1) a user interface [for tool usage, not diagram viewing], 2) What ways could we leverage this code analysis for other useful development tasks?
+
+Great timing for this kind of reflection — it's exactly the right moment to think strategically before the codebase grows in a direction that's hard to reverse. Let me look at where things stand before we talk through the possibilities.Good moment to zoom out. Here's what the project looks like and where I think the real leverage is:
+
+---
+
+**The core insight you've landed on is exactly right.** The SQLite database isn't just a cache for diagram generation — it's a *structural knowledge base* of the codebase. Call edges, class hierarchies, method return types, all fully queryable. That's the durable asset. The CLI commands are just the first consumer of it.
+
+---
+
+### On a User Interface
+
+The question is really: what kind of user are we serving? Right now it's a developer at a terminal. A UI unlocks a different kind of user — one who wants to *explore* rather than query.
+
+There are three credible paths, each with a different feel:
+
+**1. Embedded local web server (my recommendation)** — Add a `serve` command to Picocli that spins up a tiny HTTP server (Javalin or even raw `com.sun.net.httpserver`). It serves a single-page HTML/JS app that talks to a local REST API over the SQLite DB. This is the most powerful option: the UI is just a browser tab, zero native packaging, and you get the full richness of the web platform for graph rendering. It fits very naturally into the existing architecture — just another command alongside `index`, `trace`, `render`. The React/D3 ecosystem can render call graphs interactively in ways Mermaid simply can't.
+
+**2. Swing desktop app** — The CLAUDE.md notes Swing/Foundation Framework patterns. A tabbed desktop app could feel very "IDE-adjacent." Heavier to build and less shareable, but totally appropriate if offline-first and no-browser is a priority. The main drawback is that interactive graph visualization in Swing is painful compared to D3/vis.js.
+
+**3. VS Code extension** — A longer-term option. The extension would call the CLI, read the SQLite DB (via a JDBC-speaking sidecar or direct node-sqlite3), and render call graphs in a WebView panel. This is where developer adoption is — they're already in the editor.
+
+---
+
+### What Else the Database Enables
+
+This is where it gets genuinely interesting. Once you have `class_node`, `class_hierarchy`, `method_node`, and `call_edge` fully indexed, the analyses that fall out are substantial:
+
+**Dead code detection.** Any method with zero incoming `call_edge` rows that isn't a known entry point (main, test, public API surface) is a dead code candidate. This is a single SQL query and most tools do it poorly.
+
+**Impact / blast radius analysis.** "I'm changing `UserMapper.selectById` — who gets affected?" Walk the callers graph transitively. This is the `--callers` trace you already have, just surfaced as a first-class "change risk" report. Invaluable for code review.
+
+**Cycle detection.** Find circular dependencies — not just at the call level but rolled up to the package level. Package-level cycles are architecture violations; most teams don't even know they have them until a refactor blows up.
+
+**Complexity hotspots.** Fan-out (how many distinct callees a method has) and fan-in (how many callers) are trivially computable from the DB. Methods with very high fan-out are God methods. Methods with very high fan-in are high-risk change targets.
+
+**Test coverage mapping.** Index your test sources separately. Then `call_edge` rows from test methods to production methods reveal what your tests actually exercise — not line-coverage, but *behavioral* coverage by entry point. Completely different signal than JaCoCo.
+
+**Architecture layer enforcement.** Tag packages as `controller`, `service`, `repository`, `domain`. Flag any `call_edge` that crosses layers in the wrong direction. Essentially ArchUnit, but you own the data.
+
+**Onboarding / "where do I start?" reports.** Find the top-N entry points into any subsystem — the methods with no callers that have the most downstream coverage. That's your reading list for understanding a module.
+
+**Diff-aware analysis.** When combined with git, you could index two SHAs and diff the call graphs. New edges, deleted edges, changed fan-in/fan-out. That's a genuinely novel code review artifact.
+
+---
+
+### What I'd Suggest as the Framing
+
+Think of SourceLens as having two layers going forward:
+
+* **The Analysis Engine** — the indexer + SQLite DB + a richer query API (this is where `TraceService`, `RenderService`, and new service interfaces like `DeadCodeService`, `ImpactService` live)
+* **The Surfaces** — CLI (existing), local web UI (next logical step), eventually editor extension
+
+The UI is the forcing function that makes you clean up the service layer, because a UI can't just pipe stdout — it needs real APIs. That's actually a great reason to do the UI work: it'll pull the hardening of DEBT-005 and DEBT-009 (extracting `TraceService`/`RenderService` interfaces) out of "deferred" and into "necessary."
+
+---

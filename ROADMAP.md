@@ -22,6 +22,7 @@
 | # | Feature | Status | Notes |
 |---|---------|--------|-------|
 | 1.1 | **`index` command** — walk a source tree, parse Java files with JavaParser, persist method-call edges to SQLite | `[x]` | Use `LanguageLevel.JAVA_8` for legacy project compatibility |
+| 1.1r1 | **`--clean` / `--yes` flags** — delete the existing database before indexing; interactive confirmation prompt with `--yes` bypass for CI | `[x]` | `System.console()` null-guard returns false in non-interactive contexts |
 | 1.2 | **`trace` command** — given an entry-point method, query the SQLite call-graph and produce an ordered call chain | `[x]` | Depth-first traversal with cycle detection |
 | 1.3 | **`render` command** — convert a call chain to a Mermaid `sequenceDiagram` block and write to stdout or file | `[x]` | Honour ADR-003 (Mermaid over PlantUML) |
 | 1.4 | **Integration test** — end-to-end test against a sample Java 8 project fixture | `[x]` | Validates index → trace → render pipeline |
@@ -34,7 +35,8 @@
 |---|---------|--------|-------|
 | 2.1 | **Delta re-indexing** — only re-parse files changed since last index run (use file mtime / SHA) | `[ ]` | Reduces indexing time on large codebases |
 | 2.2 | **Exclusion filters** — `--exclude` glob patterns to skip test sources, generated code, etc. | `[ ]` | |
-| 2.3 | **Top-down trace mode** — instead of starting from an entry point, trace all callers of a method upward | `[~]` | Inverse call graph; `--callers` flag on `trace`; `--split` splits output by root caller into separate Mermaid blocks; prototype heuristic in place |
+| 2.3 | **Top-down trace mode** — instead of starting from an entry point, trace all callers of a method upward | `[x]` | Inverse call graph; `--callers` flag on `trace`; `--split` splits output by root caller into separate Mermaid blocks |
+| 2.3r1 | **Hardening: class hierarchy** — replace LIKE-based interface dispatch heuristics with hierarchy-aware SQL backed by `class_node` + `class_hierarchy` tables; resolves DEBT-007 and DEBT-010 | `[x]` | See `docs/features/feature-2.3r1-hardening-class-hierarchy.md`; forward trace now branches to all concrete implementations |
 | 2.4 | **Multiple output formats** — `--format mermaid|dot|json` | `[ ]` | JSON useful for downstream tooling |
 | 2.5 | **Config file support** — load default CLI option values from `.sourcelens` (checked first) or `src/etc/sourcelens/config.properties` (fallback) in the project root; CLI flags override file values | `[x]` | `.properties` format; key resolution: `command.option` beats bare `option`; uses Picocli `IDefaultValueProvider`; see `docs/features/feature-2.5-config-file.md`; DEBT-012 defers `~/.sourcelens` user-home fallback |
 | 2.6 | **Method return arrows** — emit dashed `-->>` return arrows in Mermaid diagrams labelled with the callee's return type; `void` and unresolvable types are suppressed; return type stored in `method_node.return_type` and embedded in the trace file as an optional ` : ReturnType` suffix | `[x]` | Schema migration is automatic on next `index` run; trace format is backward compatible |
@@ -64,10 +66,10 @@
 | DEBT-004 | `IndexCommand` input validation uses plain `if` — replace with `Assert` in hardening pass | 2026-04-13 | 2026-04-13 |
 | DEBT-005 | No `TraceService` interface — DFS logic is inlined in `TraceCommand`; extract in hardening | 2026-04-13 | — |
 | DEBT-006 | `TraceCommand --entry` requires exact FQN match — add substring/fuzzy lookup in hardening | 2026-04-13 | — |
-| DEBT-007 | Interface dispatch bridge is a suffix-match heuristic — replace with proper class-hierarchy walk in hardening | 2026-04-13 | — |
+| DEBT-007 | Interface dispatch bridge is a suffix-match heuristic — replace with proper class-hierarchy walk in hardening | 2026-04-13 | 2026-04-18 (Feature 2.3r1) |
 | DEBT-008 | `RenderCommand` uses simple class name as participant — two classes with the same simple name in different packages will collide; use aliased FQN in hardening | 2026-04-13 | — |
 | DEBT-009 | No `RenderService` interface — rendering logic is inlined in `RenderCommand`; extract in hardening | 2026-04-13 | — |
-| DEBT-010 | `findInterfaceCallerFqns` is a suffix-match prototype heuristic — replace with proper class-hierarchy walk in hardening (mirrors DEBT-007 for forward trace) | 2026-04-13 | — |
+| DEBT-010 | `findInterfaceCallerFqns` is a suffix-match prototype heuristic — replace with proper class-hierarchy walk in hardening (mirrors DEBT-007 for forward trace) | 2026-04-13 | 2026-04-18 (Feature 2.3r1) |
 | DEBT-011 | No config-file mechanism for explicit interface→impl mappings; deferred to hardening — design must cover file format, `interface_mapping` table, load point, and overlap with Feature 3.2 Spring XML bridge; note `.properties` format used by Feature 2.5 cannot express sections, so a format upgrade or separate file may be required | 2026-04-13 | — |
 | DEBT-012 | `DefaultConfigProvider` only checks CWD — no `~/.sourcelens` user-home fallback for global user defaults; add as third lowest-priority candidate in hardening | 2026-04-18 | — |
 
@@ -112,4 +114,4 @@ and can be dropped anywhere that has a Java 17+ runtime — no classpath setup n
 
 ---
 
-*Last updated: 2026-04-18 (Feature 2.5 complete)*
+*Last updated: 2026-04-18 (Feature 1.1r1 complete — `--clean`/`--yes` added to `index`)*

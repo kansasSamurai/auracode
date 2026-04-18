@@ -99,6 +99,19 @@ class PipelineIntegrationTest {
                 "Diagram should contain return arrow UserMapper → UserServiceImpl");
         assertTrue(diagram.contains("UserServiceImpl-->>UserController: User"),
                 "Diagram should contain return arrow UserServiceImpl → UserController");
+
+        // Feature 2.3r1: hierarchy-aware dispatch finds BOTH UserService implementations.
+        // CachedUserServiceImpl has no call to UserMapper — it stops at findById.
+        assertTrue(diagram.contains("participant CachedUserServiceImpl"),
+                "Diagram should declare CachedUserServiceImpl participant");
+        assertTrue(diagram.contains("UserController->>CachedUserServiceImpl: findById(Long)"),
+                "Diagram should contain UserController → CachedUserServiceImpl edge");
+        assertTrue(diagram.contains("CachedUserServiceImpl-->>UserController: User"),
+                "Diagram should contain return arrow CachedUserServiceImpl → UserController");
+
+        // ProductServiceImpl must NOT appear — it implements an unrelated interface
+        assertFalse(diagram.contains("ProductService"),
+                "Diagram must not contain ProductService (unrelated hierarchy)");
     }
 
     @Test
@@ -222,10 +235,52 @@ class PipelineIntegrationTest {
                 "com.example.service.UserServiceImpl#findById(Long) -> com.example.mapper.UserMapper#selectById(Long)"),
                 "Trace should contain direct caller edge: UserServiceImpl -> UserMapper");
 
-        // Upstream via heuristic: UserController calls UserServiceImpl (stored against interface)
+        // Upstream caller via UserService interface (hierarchy-aware, not heuristic)
         assertTrue(trace.contains(
                 "com.example.controller.UserController#getUser(Long) -> com.example.service.UserServiceImpl#findById(Long)"),
                 "Trace should contain upstream edge: UserController -> UserServiceImpl");
+
+        // CachedUserServiceImpl must NOT appear — it never calls UserMapper#selectById
+        assertFalse(trace.contains("CachedUserServiceImpl"),
+                "Inverse trace from UserMapper must not include CachedUserServiceImpl");
+    }
+
+    @Test
+    void hierarchyDisambiguation_concreteCalleesForUserService_excludesProductService(
+            @TempDir Path tempDir) throws IOException {
+
+        Path dbFile = tempDir.resolve("test.db");
+
+        int indexExit = cli("index",
+                "--source", FIXTURE_SOURCE.toString(),
+                "--db",     dbFile.toString());
+        assertEquals(0, indexExit, "index command should exit 0");
+
+        // Forward trace from UserController must include BOTH UserService implementations
+        // but must NOT include ProductServiceImpl (different hierarchy).
+        Path traceFile  = tempDir.resolve("trace.txt");
+        Path diagramFile = tempDir.resolve("diagram.md");
+
+        cli("trace",
+                "--entry",  ENTRY_METHOD,
+                "--db",     dbFile.toString(),
+                "--output", traceFile.toString());
+
+        cli("render",
+                "--input",  traceFile.toString(),
+                "--output", diagramFile.toString());
+
+        String diagram = Files.readString(diagramFile);
+
+        // Both UserService implementations must appear
+        assertTrue(diagram.contains("participant UserServiceImpl"),
+                "Diagram must include UserServiceImpl (implements UserService)");
+        assertTrue(diagram.contains("participant CachedUserServiceImpl"),
+                "Diagram must include CachedUserServiceImpl (also implements UserService)");
+
+        // ProductServiceImpl implements a different interface — must not bleed in
+        assertFalse(diagram.contains("ProductService"),
+                "Diagram must not include ProductService (unrelated hierarchy)");
     }
 
     // -------------------------------------------------------------------------

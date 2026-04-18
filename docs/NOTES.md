@@ -4,6 +4,29 @@
 
 `rm db/mybatis.db`
 
+### Common Sequence with .sourcelens and 'sourcelens' alias
+
+**Index:**
+
+`sourcelens index`
+`sourcelens index --clean`
+
+**Forward Trace:**
+
+`sourcelens trace --entry "com.example.controller.UserController#getUser(Long)"`
+
+**Inverse Trace:**
+
+`sourcelens trace --entry "com.example.mapper.UserMapper#selectById(Long)" --callers`
+
+`sourcelens trace --entry "com.example.mapper.UserMapper#selectById(Long)" --callers --split`
+
+**Render:**
+
+`sourcelens trace --entry "com.example.mapper.UserMapper#selectById(Long)" --callers`
+
+---
+
 ## Index the test fixture (skip if db already exists)
 
 `java -jar target/sourcelens.jar index --source test-fixtures/mybatis-sample/src --db db/mybatis.db`
@@ -35,29 +58,30 @@ com.example.util.UserSorter$anonymous:NN#compare(User, User)
 Must NOT appear (old wrong attribution):
 com.example.util.UserSorter#compare(User, User)
 
-Confirm the existing UserController → UserServiceImpl → UserMapper trace still works after
-re-indexing (regression check).
--------------------------------
+Confirm the existing UserController → UserServiceImpl → UserMapper trace still works after re-indexing (regression check).
+
+---
+
 Verification
 
 ./mvnw clean package
 
-# Full pipeline — pipe trace into render
+## Full pipeline — pipe trace into render
 
 `java -jar target/sourcelens.jar trace --entry "com.example.controller.UserController#getUser(Long)" --db db/mybatis.db | java -jar target/sourcelens.jar render`
 
 ## Expected stdout
 
-```plain
-# ```mermaid
-# sequenceDiagram
-#     participant UserController
-#     participant UserServiceImpl
-#     participant UserMapper
-#     UserController->>UserServiceImpl: findById(Long)
-#     UserServiceImpl->>UserMapper: selectById(Long)
-# ```
+````markdown
+```mermaid
+sequenceDiagram
+    participant UserController
+    participant UserServiceImpl
+    participant UserMapper
+    UserController->>UserServiceImpl: findById(Long)
+    UserServiceImpl->>UserMapper: selectById(Long)
 ```
+````
 
 ## Via intermediate file
 
@@ -106,15 +130,19 @@ java -jar target/sourcelens.jar index \
   --source test-fixtures/mybatis-sample/src \
   --db db/mybatis.db
 
-# Inverse trace from the deepest node
+## Inverse trace from the deepest node
+
 java -jar target/sourcelens.jar trace \
   --entry "com.example.mapper.UserMapper#selectById(Long)" \
   --db db/mybatis.db \
   --callers
 
-# Expected stdout (order may vary):
-# com.example.service.UserServiceImpl#findById(Long) -> com.example.mapper.UserMapper#selectById(Long)
-# com.example.controller.UserController#getUser(Long) -> com.example.service.UserServiceImpl#findById(Long)
+## Expected stdout (order may vary)
+
+```plain
+com.example.service.UserServiceImpl#findById(Long) -> com.example.mapper.UserMapper#selectById(Long)
+com.example.controller.UserController#getUser(Long) -> com.example.service.UserServiceImpl#findById(Long)
+```
 
 ## Pipe directly into render to see the upstream diagram
 

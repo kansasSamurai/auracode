@@ -5,3 +5,6 @@ target/
 # Where I store the database when testing
 db/
 
+# Ignore log files
+*.log
+
