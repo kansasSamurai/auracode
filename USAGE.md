@@ -11,7 +11,7 @@ sourcelens [--help] [--version] <command> [<args>]
 ```
 
 ```
-sourcelens index   --source <dir>  [--db <file>]
+sourcelens index   --source <dir>  [--db <file>] [--clean] [--yes]
 sourcelens trace   --entry  <fqn>  [--db <file>] [--output <file>]
                                    [--depth <n>]  [--callers] [--split]
 sourcelens render  [--input <file>] [--output <file>]
@@ -42,7 +42,7 @@ Walk a Java source tree, parse every `.java` file, and persist method-call edges
 a SQLite database.
 
 ```
-sourcelens index --source <dir> [--db <file>]
+sourcelens index --source <dir> [--db <file>] [--clean] [--yes]
 ```
 
 **Options**
@@ -51,6 +51,8 @@ sourcelens index --source <dir> [--db <file>]
 |--------|-------|---------|-------------|
 | `--source <dir>` | `-s` | *(required)* | Root directory of the Java source tree to index. |
 | `--db <file>` | `-d` | `.sourcelens.db` | SQLite output file. Created if it does not exist; updated incrementally if it does. |
+| `--clean` | | false | Delete the existing database before indexing. Prompts for confirmation unless `--yes` is also given. |
+| `--yes` | `-y` | false | Skip the `--clean` confirmation prompt. Intended for scripting and CI environments where no interactive console is available. |
 | `--help` | `-h` | | Print command help and exit. |
 
 **Notes**
@@ -59,6 +61,8 @@ sourcelens index --source <dir> [--db <file>]
   legacy codebases, but requires a **Java 17+** runtime to execute.
 - Re-running `index` on the same `--db` is safe: nodes and edges are upserted, not
   duplicated.
+- Use `--clean --yes` to force a full re-index in CI pipelines or pre-commit hooks
+  without interactive prompts.
 - Method return types are stored alongside each node and are used by `trace` to
   annotate the trace file (see Feature 2.6).
 

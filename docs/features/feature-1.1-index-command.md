@@ -82,6 +82,26 @@ UserController#getUser → UserServiceImpl#findById → UserMapper#selectById
 | ~~DEBT-003~~ | ~~`CallGraphDb` has no connection pooling~~ — **not applicable**. Pooling solves concurrent thread contention in long-running processes; SourceLens is neither. The JVM starts, one command executes, the process exits. The `try-with-resources` `AutoCloseable` pattern is the correct design. Closed as a deliberate decision. |
 | ~~DEBT-004~~ | ~~`IndexCommand` input validation uses plain `if`~~ — **resolved** (`Assert` utility introduced) |
 
+---
+
+## Revision History
+
+### Feature 1.1r1 — `--clean` / `--yes` flags (2026-04-18)
+
+Added two new options to the `index` command:
+
+| Option | Short | Default | Description |
+|--------|-------|---------|-------------|
+| `--clean` | | false | Delete the existing database before indexing. Prompts for confirmation unless `--yes` is also given. |
+| `--yes` | `-y` | false | Skip the `--clean` confirmation prompt. Intended for scripting and CI environments. |
+
+**Design notes:**
+- Confirmation uses `System.console().readLine()`. When no console is attached (e.g. CI, piped input), the method returns `false` and logs a warning directing the user to `--yes` — safe default.
+- `--yes` without `--clean` is silently ignored.
+- `Files.deleteIfExists` is used so a missing database is not an error.
+
+---
+
 ## Verification
 
 ```bash
