@@ -13,6 +13,7 @@ import java.io.PrintWriter;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
@@ -74,20 +75,53 @@ public class RenderCommand implements Runnable {
     }
 
     // -------------------------------------------------------------------------
+    // Domain types
+    // -------------------------------------------------------------------------
+
+    /**
+     * A single directed call edge from the trace file.
+     *
+     * @param callerFqn  fully-qualified caller method
+     * @param calleeFqn  fully-qualified callee method
+     * @param returnType return type of the callee, or {@code null} when unknown
+     */
+    private record Edge(String callerFqn, String calleeFqn, String returnType) {}
+
+    // -------------------------------------------------------------------------
     // Diagram writer
     // -------------------------------------------------------------------------
 
-    private static void writeDiagram(List<String[]> edges, Set<String> participants, PrintWriter w) {
+    /**
+     * Emits a fenced Mermaid {@code sequenceDiagram} block.
+     *
+     * Forward call arrows ({@code ->>}) are emitted in edge order.
+     * Dashed return arrows ({@code -->>}) are then emitted in reverse order so
+     * that each callee "returns" to its caller after the full call stack has been
+     * shown.  {@code void} returns and edges with no resolved return type are
+     * silently suppressed.
+     */
+    private static void writeDiagram(List<Edge> edges, Set<String> participants, PrintWriter w) {
         w.println("```mermaid");
         w.println("sequenceDiagram");
         for (String p : participants) {
             w.println("    participant " + p);
         }
-        for (String[] edge : edges) {
-            String from = toParticipant(edge[0]);
-            String to   = toParticipant(edge[1]);
-            String msg  = toMessage(edge[1]);
+        // Forward call arrows
+        for (Edge edge : edges) {
+            String from = toParticipant(edge.callerFqn());
+            String to   = toParticipant(edge.calleeFqn());
+            String msg  = toMessage(edge.calleeFqn());
             w.println("    " + from + "->>" + to + ": " + msg);
+        }
+        // Return arrows — reversed, void / unknown suppressed
+        List<Edge> reversed = new ArrayList<>(edges);
+        Collections.reverse(reversed);
+        for (Edge edge : reversed) {
+            String rt = edge.returnType();
+            if (rt == null || rt.isEmpty() || rt.equals("void")) continue;
+            String from = toParticipant(edge.callerFqn());
+            String to   = toParticipant(edge.calleeFqn());
+            w.println("    " + to + "-->>" + from + ": " + rt);
         }
         w.println("```");
     }
@@ -98,7 +132,7 @@ public class RenderCommand implements Runnable {
 
     private static class Section {
         final String label; // root FQN from "=== <fqn> ===" header, or null for single-section input
-        final List<String[]> edges = new ArrayList<>();
+        final List<Edge> edges = new ArrayList<>();
         final Set<String> participants = new LinkedHashSet<>();
 
         Section(String label) {
@@ -109,6 +143,10 @@ public class RenderCommand implements Runnable {
     /**
      * Splits input lines into sections on {@code === <fqn> ===} headers.
      * If no headers are found, returns a single section with label=null (backward compatible).
+     *
+     * <p>Edge lines may carry an optional return-type suffix added by Feature 2.6:
+     * {@code callerFqn -> calleeFqn : ReturnType}.  Lines without the suffix are
+     * parsed with {@code returnType = null}.
      */
     private static List<Section> parseSections(List<String> lines) {
         List<Section> sections = new ArrayList<>();
@@ -136,10 +174,23 @@ public class RenderCommand implements Runnable {
                 continue; // skip malformed lines
             }
             String callerFqn = line.substring(0, sep).trim();
-            String calleeFqn = line.substring(sep + 4).trim();
+            String rest      = line.substring(sep + 4).trim();
+
+            // Parse optional " : ReturnType" suffix (Feature 2.6).
+            // FQNs never contain " : ", so the last occurrence is the separator.
+            String calleeFqn;
+            String returnType = null;
+            int rtSep = rest.lastIndexOf(" : ");
+            if (rtSep >= 0) {
+                calleeFqn  = rest.substring(0, rtSep).trim();
+                returnType = rest.substring(rtSep + 3).trim();
+            } else {
+                calleeFqn = rest;
+            }
+
             current.participants.add(toParticipant(callerFqn));
             current.participants.add(toParticipant(calleeFqn));
-            current.edges.add(new String[]{callerFqn, calleeFqn});
+            current.edges.add(new Edge(callerFqn, calleeFqn, returnType));
         }
 
         if (sections.isEmpty()) {

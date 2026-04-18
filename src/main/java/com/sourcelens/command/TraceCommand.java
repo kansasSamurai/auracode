@@ -100,7 +100,7 @@ public class TraceCommand implements Runnable {
             List<String> concrete = db.findConcreteCalleeFqns(callee);
             List<String> targets = concrete.isEmpty() ? List.of(callee) : concrete;
             for (String target : targets) {
-                writer.println(fqn + " -> " + target);
+                writer.println(fqn + " -> " + target + returnTypeSuffix(db, target));
                 traverse(target, db, depth - 1, visited, writer);
             }
         }
@@ -126,7 +126,7 @@ public class TraceCommand implements Runnable {
                 : directCallers;
 
         for (String caller : effectiveCallers) {
-            writer.println(caller + " -> " + fqn);
+            writer.println(caller + " -> " + fqn + returnTypeSuffix(db, fqn));
             traverseCallers(caller, db, depth - 1, visited, writer);
         }
     }
@@ -161,7 +161,7 @@ public class TraceCommand implements Runnable {
         log.info("Split trace: {} root caller(s) found for '{}'.", roots.size(), targetFqn);
         for (String root : roots) {
             writer.println("=== " + root + " ===");
-            emitChain(root, forwardAdj, new LinkedHashSet<>(), writer);
+            emitChain(root, forwardAdj, new LinkedHashSet<>(), db, writer);
         }
     }
 
@@ -187,13 +187,19 @@ public class TraceCommand implements Runnable {
     }
 
     private void emitChain(String node, Map<String, List<String>> forwardAdj,
-                            Set<String> visited, PrintWriter writer) {
+                            Set<String> visited, CallGraphDb db, PrintWriter writer) {
         if (visited.contains(node)) return;
         visited.add(node);
         for (String callee : forwardAdj.getOrDefault(node, List.of())) {
-            writer.println(node + " -> " + callee);
-            emitChain(callee, forwardAdj, visited, writer);
+            writer.println(node + " -> " + callee + returnTypeSuffix(db, callee));
+            emitChain(callee, forwardAdj, visited, db, writer);
         }
+    }
+
+    /** Returns " : ReturnType" when a return type is known, otherwise empty string. */
+    private static String returnTypeSuffix(CallGraphDb db, String calleeFqn) {
+        String rt = db.getReturnType(calleeFqn);
+        return rt != null ? " : " + rt : "";
     }
 
     private PrintWriter openWriter() throws IOException {

@@ -34,6 +34,19 @@ At the start of every session, Claude must ask:
 - **ADRs:** Use ADRs (Architectural Decision Records) for structural decisions (e.g., choice of bytecode parser). These files should go in `/docs/adr/`.
 - **Debt Tracking:** Any technical debt created must be logged with a `[DEBT]` tag.
 
+### 4. Enhancing a Completed Feature
+
+When adding to a feature already marked `[x]` in ROADMAP.md:
+
+- **Well-scoped addition:** Create a new feature doc with a decimal or letter suffix
+  (e.g. `feature-2.11r1-config-file-max-depth.md`) and add a new ROADMAP checkbox.
+- **Minor tweak (single key, single default):** Append a `## Revision History` section
+  to the existing feature doc and add a suffixed ROADMAP line (e.g. `Feature 2.11r1`).
+- **Never rewrite a feature doc in place** in a way that obscures what was originally
+  shipped. The existing doc is the baseline contract — `git log` on it must tell a clean story.
+- The ROADMAP must always reflect what was actually built, not an idealized summary.
+  Add new lines; do not edit closed checkboxes.
+
 ## Coding Conventions
 
 - **Naming:** `Service` (Interface) -> `DefaultService` (Implementation).

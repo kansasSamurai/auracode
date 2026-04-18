@@ -93,6 +93,12 @@ class PipelineIntegrationTest {
                 "Diagram should contain UserController → UserServiceImpl edge");
         assertTrue(diagram.contains("UserServiceImpl->>UserMapper: selectById(Long)"),
                 "Diagram should contain UserServiceImpl → UserMapper edge");
+
+        // Return arrows (Feature 2.6): dashed arrows in reverse call order
+        assertTrue(diagram.contains("UserMapper-->>UserServiceImpl: User"),
+                "Diagram should contain return arrow UserMapper → UserServiceImpl");
+        assertTrue(diagram.contains("UserServiceImpl-->>UserController: User"),
+                "Diagram should contain return arrow UserServiceImpl → UserController");
     }
 
     @Test
@@ -172,6 +178,12 @@ class PipelineIntegrationTest {
         int headingCount = 0;
         while (headingMatcher.find()) headingCount++;
         assertEquals(3, headingCount, "Diagram should contain 3 UserController section headings");
+
+        // Return arrows (Feature 2.6): each section should have dashed return arrows
+        assertTrue(diagram.contains("UserMapper-->>UserServiceImpl: User"),
+                "Diagram should contain return arrow UserMapper → UserServiceImpl");
+        assertTrue(diagram.contains("UserServiceImpl-->>UserController: User"),
+                "Diagram should contain return arrow UserServiceImpl → UserController");
     }
 
     @Test

@@ -47,6 +47,7 @@ public class SourceIndexer {
         configureParser(sourcePath);
 
         List<String[]> allEdges = new ArrayList<>();
+        List<String[]> allNodes = new ArrayList<>();
         int fileCount = 0;
 
         try (Stream<Path> walk = Files.walk(sourcePath)) {
@@ -58,8 +59,10 @@ public class SourceIndexer {
                 try {
                     CompilationUnit cu = StaticJavaParser.parse(file);
                     List<String[]> edges = new ArrayList<>();
-                    new CallEdgeVisitor(cu, edges).visit(cu, null);
+                    List<String[]> nodes = new ArrayList<>();
+                    new CallEdgeVisitor(cu, edges, nodes).visit(cu, null);
                     allEdges.addAll(edges);
+                    allNodes.addAll(nodes);
                     fileCount++;
                 } catch (Exception e) {
                     log.warn("Skipping {} — parse error: {}", file, e.getMessage());
@@ -71,6 +74,7 @@ public class SourceIndexer {
 
         try (CallGraphDb db = new CallGraphDb(dbPath)) {
             db.init();
+            db.persistNodes(allNodes);
             db.persistEdges(allEdges);
             long nodes = db.countNodes();
             long edges = db.countEdges();
@@ -96,34 +100,43 @@ public class SourceIndexer {
 
     /**
      * Visits every method declaration and every method call expression in a
-     * compilation unit, collecting directed edges {callerFqn, calleeFqn}.
+     * compilation unit, collecting directed edges {callerFqn, calleeFqn, callerReturnType}.
+     *
+     * The visitor context ({@code arg}) is a two-element {@code String[]} carrying
+     * {@code [callerFqn, callerReturnType]}.  This avoids a separate bookkeeping map
+     * while keeping the visitor stateless between declarations.
      */
-    private static final class CallEdgeVisitor extends VoidVisitorAdapter<String> {
+    private static final class CallEdgeVisitor extends VoidVisitorAdapter<String[]> {
 
         private final CompilationUnit cu;
         private final List<String[]> edges;
+        private final List<String[]> nodes;
 
-        CallEdgeVisitor(CompilationUnit cu, List<String[]> edges) {
+        CallEdgeVisitor(CompilationUnit cu, List<String[]> edges, List<String[]> nodes) {
             this.cu = cu;
             this.edges = edges;
+            this.nodes = nodes;
         }
 
         @Override
-        public void visit(MethodDeclaration n, String ignored) {
-            String callerFqn = buildCallerFqn(n);
-            // Recurse into the method body, passing callerFqn as the arg
-            super.visit(n, callerFqn);
+        public void visit(MethodDeclaration n, String[] ignored) {
+            String callerFqn    = buildCallerFqn(n);
+            String returnType   = n.getType().asString();   // e.g. "User", "void", "List<String>"
+            nodes.add(new String[]{callerFqn, returnType});
+            super.visit(n, new String[]{callerFqn, returnType});
         }
 
         @Override
-        public void visit(MethodCallExpr n, String callerFqn) {
-            if (callerFqn == null) {
+        public void visit(MethodCallExpr n, String[] ctx) {
+            if (ctx == null) {
                 super.visit(n, null);
                 return;
             }
-            String calleeFqn = resolveCallee(n);
-            edges.add(new String[]{callerFqn, calleeFqn});
-            super.visit(n, callerFqn);
+            String callerFqn        = ctx[0];
+            String callerReturnType = ctx[1];
+            String calleeFqn        = resolveCallee(n);
+            edges.add(new String[]{callerFqn, calleeFqn, callerReturnType});
+            super.visit(n, ctx);
         }
 
         // ------------------------------------------------------------------

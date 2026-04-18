@@ -37,13 +37,14 @@
 | 2.3 | **Top-down trace mode** — instead of starting from an entry point, trace all callers of a method upward | `[~]` | Inverse call graph; `--callers` flag on `trace`; `--split` splits output by root caller into separate Mermaid blocks; prototype heuristic in place |
 | 2.4 | **Multiple output formats** — `--format mermaid|dot|json` | `[ ]` | JSON useful for downstream tooling |
 | 2.5 | **Config file support** — load default options (db path, depth, log location, exclusion patterns, etc.) from a `sourcelens.yml` or `.sourcelens` config file in the project root or user home; CLI flags override file values | `[ ]` | Enables per-project defaults without long flag lists; design must consider overlap with DEBT-011 (interface→impl mappings) and Feature 3.2 (Spring XML) |
+| 2.6 | **Method return arrows** — emit dashed `-->>` return arrows in Mermaid diagrams labelled with the callee's return type; `void` and unresolvable types are suppressed; return type stored in `method_node.return_type` and embedded in the trace file as an optional ` : ReturnType` suffix | `[x]` | Schema migration is automatic on next `index` run; trace format is backward compatible |
 
 ---
 
 ## Phase 3: Advanced
 
 | # | Feature | Status | Notes |
-|---|---------|--------|-------|
+| - | ------- | ------ | ----- |
 | 3.1 | **MyBatis XML resolution** — resolve mapper interface calls through `*Mapper.xml` SQL statements | `[ ]` | Requires XML parsing layer on top of JavaParser |
 | 3.2 | **Spring XML bridge** — resolve `<bean>` wiring in legacy Spring XML configs | `[ ]` | Low priority; most modern projects use annotations |
 | 3.3 | **AI-enhanced mode** — optionally call an LLM to annotate the diagram with plain-language summaries | `[ ]` | Optional feature; requires API key config |
@@ -110,4 +111,4 @@ and can be dropped anywhere that has a Java 17+ runtime — no classpath setup n
 
 ---
 
-*Last updated: 2026-04-13*
+*Last updated: 2026-04-14 (Feature 2.6 complete)*
