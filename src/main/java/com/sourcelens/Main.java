@@ -3,6 +3,7 @@ package com.sourcelens;
 import com.sourcelens.command.IndexCommand;
 import com.sourcelens.command.RenderCommand;
 import com.sourcelens.command.TraceCommand;
+import com.sourcelens.config.DefaultConfigProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import picocli.CommandLine;
@@ -26,7 +27,9 @@ public class Main implements Runnable {
     }
 
     public static void main(String[] args) {
-        int exitCode = new CommandLine(new Main()).execute(args);
+        int exitCode = new CommandLine(new Main())
+                .setDefaultValueProvider(new DefaultConfigProvider())
+                .execute(args);
         System.exit(exitCode);
     }
 }

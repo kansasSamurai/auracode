@@ -36,7 +36,7 @@
 | 2.2 | **Exclusion filters** — `--exclude` glob patterns to skip test sources, generated code, etc. | `[ ]` | |
 | 2.3 | **Top-down trace mode** — instead of starting from an entry point, trace all callers of a method upward | `[~]` | Inverse call graph; `--callers` flag on `trace`; `--split` splits output by root caller into separate Mermaid blocks; prototype heuristic in place |
 | 2.4 | **Multiple output formats** — `--format mermaid|dot|json` | `[ ]` | JSON useful for downstream tooling |
-| 2.5 | **Config file support** — load default options (db path, depth, log location, exclusion patterns, etc.) from a `sourcelens.yml` or `.sourcelens` config file in the project root or user home; CLI flags override file values | `[ ]` | Enables per-project defaults without long flag lists; design must consider overlap with DEBT-011 (interface→impl mappings) and Feature 3.2 (Spring XML) |
+| 2.5 | **Config file support** — load default CLI option values from `.sourcelens` (checked first) or `src/etc/sourcelens/config.properties` (fallback) in the project root; CLI flags override file values | `[x]` | `.properties` format; key resolution: `command.option` beats bare `option`; uses Picocli `IDefaultValueProvider`; see `docs/features/feature-2.5-config-file.md`; DEBT-012 defers `~/.sourcelens` user-home fallback |
 | 2.6 | **Method return arrows** — emit dashed `-->>` return arrows in Mermaid diagrams labelled with the callee's return type; `void` and unresolvable types are suppressed; return type stored in `method_node.return_type` and embedded in the trace file as an optional ` : ReturnType` suffix | `[x]` | Schema migration is automatic on next `index` run; trace format is backward compatible |
 
 ---
@@ -68,7 +68,8 @@
 | DEBT-008 | `RenderCommand` uses simple class name as participant — two classes with the same simple name in different packages will collide; use aliased FQN in hardening | 2026-04-13 | — |
 | DEBT-009 | No `RenderService` interface — rendering logic is inlined in `RenderCommand`; extract in hardening | 2026-04-13 | — |
 | DEBT-010 | `findInterfaceCallerFqns` is a suffix-match prototype heuristic — replace with proper class-hierarchy walk in hardening (mirrors DEBT-007 for forward trace) | 2026-04-13 | — |
-| DEBT-011 | No config-file mechanism for explicit interface→impl mappings; deferred to hardening — design must cover file format, `interface_mapping` table, load point, and overlap with Feature 3.2 Spring XML bridge | 2026-04-13 | — |
+| DEBT-011 | No config-file mechanism for explicit interface→impl mappings; deferred to hardening — design must cover file format, `interface_mapping` table, load point, and overlap with Feature 3.2 Spring XML bridge; note `.properties` format used by Feature 2.5 cannot express sections, so a format upgrade or separate file may be required | 2026-04-13 | — |
+| DEBT-012 | `DefaultConfigProvider` only checks CWD — no `~/.sourcelens` user-home fallback for global user defaults; add as third lowest-priority candidate in hardening | 2026-04-18 | — |
 
 ---
 
@@ -111,4 +112,4 @@ and can be dropped anywhere that has a Java 17+ runtime — no classpath setup n
 
 ---
 
-*Last updated: 2026-04-14 (Feature 2.6 complete)*
+*Last updated: 2026-04-18 (Feature 2.5 complete)*

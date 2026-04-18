@@ -1,0 +1,2 @@
+db=db/mybatis.db
+index.source=test-fixtures/mybatis-sample/src
