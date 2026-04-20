@@ -11,7 +11,7 @@ sourcelens [--help] [--version] <command> [<args>]
 ```
 
 ```
-sourcelens index   --source <dir>  [--db <file>] [--clean] [--yes]
+sourcelens index   --source <dir>  [--db <file>] [--clean] [--yes] [--include-external]
 sourcelens trace   --entry  <fqn>  [--db <file>] [--output <file>]
                                    [--depth <n>]  [--callers] [--split]
 sourcelens render  [--input <file>] [--output <file>]
@@ -53,6 +53,7 @@ sourcelens index --source <dir> [--db <file>] [--clean] [--yes]
 | `--db <file>` | `-d` | `.sourcelens.db` | SQLite output file. Created if it does not exist; updated incrementally if it does. |
 | `--clean` | | false | Delete the existing database before indexing. Prompts for confirmation unless `--yes` is also given. |
 | `--yes` | `-y` | false | Skip the `--clean` confirmation prompt. Intended for scripting and CI environments where no interactive console is available. |
+| `--include-external` | | false | Include call edges to Java SDK and third-party libraries. By default these edges are suppressed so the call graph contains only project-internal method calls. |
 | `--help` | `-h` | | Print command help and exit. |
 
 **Notes**

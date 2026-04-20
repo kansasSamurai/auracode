@@ -40,6 +40,7 @@
 | 2.4 | **Multiple output formats** — `--format mermaid|dot|json` | `[ ]` | JSON useful for downstream tooling |
 | 2.5 | **Config file support** — load default CLI option values from `.sourcelens` (checked first) or `src/etc/sourcelens/config.properties` (fallback) in the project root; CLI flags override file values | `[x]` | `.properties` format; key resolution: `command.option` beats bare `option`; uses Picocli `IDefaultValueProvider`; see `docs/features/feature-2.5-config-file.md`; DEBT-012 defers `~/.sourcelens` user-home fallback |
 | 2.6 | **Method return arrows** — emit dashed `-->>` return arrows in Mermaid diagrams labelled with the callee's return type; `void` and unresolvable types are suppressed; return type stored in `method_node.return_type` and embedded in the trace file as an optional ` : ReturnType` suffix | `[x]` | Schema migration is automatic on next `index` run; trace format is backward compatible |
+| 2.7 | **Filter external call edges** — by default, suppress edges where the callee class is not in the indexed source tree (Java SDK, third-party libs); `--include-external` flag and `index.include-external` config key opt back in | `[x]` | Filter applied at persist-time using the `allClassNodes` set; DEBT-002 unresolved `(?)` nodes also suppressed by default |
 
 ---
 
@@ -114,4 +115,4 @@ and can be dropped anywhere that has a Java 17+ runtime — no classpath setup n
 
 ---
 
-*Last updated: 2026-04-18 (Feature 1.1r1 complete — `--clean`/`--yes` added to `index`)*
+*Last updated: 2026-04-19 (Feature 2.7 complete — external call edge filtering)*

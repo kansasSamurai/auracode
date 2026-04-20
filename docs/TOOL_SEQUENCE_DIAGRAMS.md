@@ -689,3 +689,258 @@ Think of SourceLens as having two layers going forward:
 The UI is the forcing function that makes you clean up the service layer, because a UI can't just pipe stdout — it needs real APIs. That's actually a great reason to do the UI work: it'll pull the hardening of DEBT-005 and DEBT-009 (extracting `TraceService`/`RenderService` interfaces) out of "deferred" and into "necessary."
 
 ---
+
+## Maven
+
+Since you are building a tool that performs static analysis and generates documentation, the "Maven Way" suggests a few locations depending on whether these configs are for the tool's behavior or part of the project's build-metadata.
+
+Here are the most appropriate standard locations for your utility's support and configuration files:
+
+### 1. The Root Directory (Project-Specific Config)
+
+If your utility is intended to be used by multiple developers on the same project (similar to how `.checkstyle`, `.editorconfig`, or `pom.xml` work), the **project root** is the most common home.
+
+* **Proposed Path:** `${project.basedir}/.sourcelens/` or `${project.basedir}/sourcelens.yaml`
+* **Why:** It makes the configuration highly visible and ensures that when someone clones the repo, the utility "just works" with the predefined rules for that specific codebase.
+
+### 2. Under `src/main/resources` (Embedded Config)
+
+If your utility needs to read these configurations at runtime while the app is actually running (e.g., if the utility is a dependency within the app), they belong in the classpath.
+
+* **Proposed Path:** `src/main/resources/metadata/` or `src/main/resources/telemetry/`
+* **Why:** This is the standard for any file that needs to be packaged into the JAR. However, if these files are **only** for the CLI tool during development, this location might "pollute" your production artifact.
+
+### 3. Under `src/test/resources` (Development/Testing Only)
+
+If the utility is strictly a development-time tool that should never be deployed to production, placing the configs here is a safe bet.
+
+* **Proposed Path:** `src/test/resources/sourcelens/`
+* **Why:** Maven will ignore these during the `package` phase for the production JAR, but they remain available for local execution and unit testing of your utility.
+
+### 4. The `etc` or `config` Directory (Convention-Based)
+
+While not strictly enforced by the Maven Lifecycle, many "high craft" enterprise projects use an `etc` or `config` folder at the root for non-build assets like forensic audit scripts, SQL migration headers, or deployment templates.
+
+* **Proposed Path:** `${project.basedir}/etc/sourcelens/`
+* **Why:** It keeps the root directory clean while signaling that these are "support" files rather than primary source code.
+
+---
+
+### Comparison Table
+
+| Location | Visibility | Packaged in JAR? | Best Use Case |
+| :--- | :--- | :--- | :--- |
+| **Root (`/.sourcelens`)** | High | No | Tool-specific behavior (e.g., package exclusion lists). |
+| **`src/main/resources`** | Low | **Yes** | If the app needs to "self-reflect" using these files. |
+| **`src/test/resources`** | Low | No | Safe, "invisible" storage for dev-only tools. |
+| **`etc/` or `config/`** | Medium | No | Clean separation for architectural/SRE documentation. |
+
+### Recommendation
+
+For a CLI-based static analysis tool, the **Project Root** (using a hidden directory like `.sourcelens/`) is usually the best balance. It follows the pattern set by modern ecosystem tools (Git, Prettier, Claude) and ensures your "Source of Truth" for the diagram generation stays with the code without cluttering the `src` tree.
+
+Does your utility require the user to point to these files manually, or are you planning to have it auto-discover them by traversing up from the current directory?
+
+> Response: The utility would require the source files location(s) to be declared from the command line option or from a config file entry/property.
+
+Since your utility requires specific paths to scan, and you’re looking for a balance between "well-behaved tool" and "minimal friction," there are two clear paths depending on how you want the user to interact with it.
+
+### 1. The "Project-Local" Approach (Recommended)
+
+If the tool is meant to be checked into source control alongside the project, the most "Maven-friendly" location is:
+
+**`${project.basedir}/src/etc/sourcelens/config.properties`**
+
+* **Why `src/etc`?** While not a strictly "standard" Maven folder like `src/main/java`, `src/etc` is the industry-standard convention for project-specific configuration that is **not** part of the build artifact.
+* **The Benefit:** It keeps the project root clean while ensuring the configuration is version-controlled.
+
+### 2. The "Hidden Root" Approach (The Modern Standard)
+
+If you want the tool to behave like modern CLI utilities (e.g., Git, Prettier, or Claude), use a hidden file or directory at the project root:
+
+**`${project.basedir}/.sourcelens`**
+
+* **Why?** This is the path of least resistance. You can search for this file by traversing up the directory tree until you find it.
+* **The Content:** You can store your source locations here:
+
+    ```properties
+    # .sourcelens file
+    source.dirs=src/main/java,src/generated/java
+    exclude.packages=org.springframework,com.thirdparty
+    output.format=mermaid
+    ```
+
+---
+
+### Implementation Tip: Avoiding "Hardcoded Path" Fragility
+
+Since you mentioned the utility needs the source locations, you can make it "play nice" with Maven by defaulting to standard locations if no config is found.
+
+A "high craft" way to handle this in your Java utility would be:
+
+1. **Check Command Line:** Highest priority (e.g., `--source=./src/main/java`).
+2. **Check Config File:** If no CLI arg, look for `.sourcelens` or `src/etc/sourcelens/config`.
+3. **Default to Maven Standard:** If both are missing, assume `${user.dir}/src/main/java`.
+
+### A Note on Maven Property Interpolation
+
+If you ever *do* decide to let Maven manage this file, you can place it in `src/main/resources` and use **Maven Filtering**. This allows you to use placeholders like:
+`source.path=${project.build.sourceDirectory}`
+
+Maven will automatically swap that out for the real path during the `process-resources` phase. Even without a full plugin, your utility could simply read the resulting file from the `target/classes` folder.
+
+## Product Names
+
+Since you’re building a tool that focuses on **forensic analysis**, **"High Craft" architecture**, and bridging the gap between **decoupled interfaces (Spring/MyBatis)** and **visual flow**, you want a name that sounds precise and structural.
+
+Here are a few naming ideas categorized by the "vibe" they project:
+
+### The "Forensic & Trace" Category
+
+These lean into your goal of tracking down how things *actually* connect through the static noise.
+
+* **TraceFoundry:** (Your initial thought—it's strong, sounds industrial and constructive).
+* **LoomTrace:** Suggests following the "threads" of execution through the fabric of the code.
+* **PathWire:** Implies you are "wiring up" the path between disparate components.
+* **OriginPoint:** Focused on finding the true source of a call chain.
+
+### The "X-Ray & Structural" Category
+
+These emphasize seeing through abstractions like Interfaces and Proxies to find the underlying logic.
+
+* **StaticPulse:** Captures the idea of finding the "heartbeat" of the logic via static analysis.
+* **GraphNode:** Simple, technical, and accurate to the data structure you're likely building.
+* **StructureFlow:** Very literal; it describes exactly what the Mermaid output represents.
+* **AuraCode:** (A bit more abstract) Suggests seeing the "aura" or the invisible connections surrounding a class.
+
+### The "Craft & Tooling" Category
+
+These appeal to the "Senior Engineer" aesthetic—tools that are built to last and serve a specific, high-quality purpose.
+
+* **LogicLathe:** Like a wood lathe, it "shapes" raw source code into a clean, symmetrical diagram.
+* **BlueprintMapper:** Connects the abstract "blueprint" (interfaces) to the "map" (implementation).
+* **CodeCaliper:** Suggests a tool used for high-precision measurement and inspection.
+* **Schematico:** A play on "Schematic," giving it a lightweight, utility-style feel.
+
+### Unique/Abstract (Short & Punchy)
+
+* **Vantrace:** (Van + Trace) Sounds like a modern, sleek utility.
+* **Kodaic:** A play on "Code" and "Archaic," suggesting it can handle legacy and modern structures alike.
+* **Synap:** Short for Synapse; representing the firing connection between a Controller and its Service.
+* **WireMap:** Focused on the "wiring" of the Spring context.
+
+---
+
+### A Quick "Uniqueness" Check
+
+* **"TraceFoundry"** is excellent and very unlikely to conflict with major commercial software.
+* **"LogicLathe"** is highly unique and fits the "High Craft" philosophy perfectly.
+* **"PathWire"** is punchy and easy to remember.
+
+**Personal Pick:** **LogicLathe** or **TraceFoundry**. They both feel like "professional-grade" utilities that a developer with 40+ years of experience would use to dissect a complex system.
+
+> Response: I like TraceFoundry but it seems "larger" than just this utility - I might keep it in reserve if I build more tooling around the database portion of this tool.  I think I'll go with AuraCode for now - it's abstract, probably pretty unique and I see some nice graphics opportunities for branding.
+
+**AuraCode** is a fantastic choice. It captures that sense of "seeing the invisible"—the logic and connections that exist within the code but aren't immediately visible to the naked eye. Plus, the branding potential for something involving "auras" or "radiance" around code blocks and nodes is top-tier. It feels modern but retains a bit of that "High Craft" mystery.
+
+Since you're moving forward with **AuraCode**, and given the specific challenges you’ve identified with MyBatis mappers and Spring interface navigation, here are a few "Forensic Features" you might want to bake into your logic to make it truly stand out:
+
+### 1. The "Virtual Implementation" (The MyBatis Fix)
+
+Since you can't step "into" a Mapper interface, you could allow the config file (`.auracode`) to map specific interfaces to a "Virtual Participant."
+
+* **The Logic:** If the tool hits a class annotated with `@Mapper` or in a specific package, it renders a specialized "Data/SQL" icon or a colored lifelines in Mermaid to indicate it's a boundary.
+
+### 2. "Call Context" Detection
+
+Since the utility is a down-trace engine, you could implement a "Search for Entry Point" mode.
+
+* **The Logic:** A CLI flag like `--find-callers` could perform a quick pre-scan (using your "bottom-up" analysis) to identify every Controller that references a Service, then generate a separate diagram for each "Path" it finds.
+
+### 3. Interface "Ghosting"
+
+In Mermaid, you could represent the Interface and the Implementation as a single unit or use a "Nested" box.
+
+* **The Logic:**
+
+    ```mermaid
+    box "Service Layer" #f9f9f9
+    participant I as ServiceInterface
+    participant Impl as ServiceImpl
+    end
+    ```
+
+    This visually acknowledges the "Aura" of the interface while showing the actual execution happens in the implementation.
+
+### A Branding Idea for the "Aura"
+
+If you do build those graphics, using **gradient lifelines** in the Mermaid output—where the color shifts as it moves from the "External" Controller layer into the "Internal" Service and Data layers—would be a beautiful nod to the name.
+
+Are you planning to have **AuraCode** output the Mermaid code directly to the console, or will it automatically generate an `.mmd` file in that `src/etc/auracode` directory you've set up?
+
+> Response: It currently defaults to the console but I think I'm going to add a config file option that will result in automatically generating an .mmd file based on the name of the entry point.
+>
+> p.s.  I've actually already implemented the bottom up feature as it provides the most value and uniqueness to tools - lots of tools can do top down (including me as a human with an IDE I'm just slower).
+
+That "Bottom-Up" approach is where the real forensic value lies. In a dense Spring application, knowing what *might* happen (down-trace) is easy, but knowing exactly which entry points trigger a specific logic change (up-trace) is the key to safe refactoring and capacity forecasting.
+
+Automating the filename based on the entry point is a slick move—it turns **AuraCode** into a "snapshot" tool you can run before and after a code change.
+
+### Streamlining the `.mmd` Generation
+
+If you're moving toward file-based output, here are a couple of "High Craft" touches that might save you some headaches:
+
+* **Sanitized Filenames:** Since Java method signatures can get messy, mapping something like `com.project.service.AccountService:updateBalance` to `AccountService_updateBalance.mmd` keeps your file system clean.
+* **The "Orphan" Check:** Since your tool is unique in its bottom-up capability, you could have a flag that generates a "Discovery" report—an index of all methods that *no* controller currently reaches. It’s a great way to identify dead code or missing telemetry.
+
+### Mermaid "Header" Automation
+
+To make the files more useful as long-term documentation, you might have **AuraCode** automatically prepend a bit of metadata to the `.mmd` file:
+
+```mermaid
+---
+title: AuraCode Trace: [MethodName]
+config:
+  theme: forest
+---
+sequenceDiagram
+    ...
+```
+
+### A Quick Graphic/Branding Thought
+
+Since you mentioned branding, if you ever wrap this in a small UI or a generated HTML report, using a **subtle glow effect** on the Mermaid participant boxes (via CSS) would perfectly mirror the "Aura" name.
+
+It sounds like you've moved past the "fundamental limitation" hurdle and into building something that actually fills a gap in the standard dev toolkit. Does the utility currently handle deep inheritance trees (e.g., `BaseController` → `AbstractService` → `ActualService`), or are you keeping the scope tight on direct interface-to-implementation mapping for now?
+
+> Response:
+
+Handling deep inheritance trees is the "final boss" of static analysis, and it's where **AuraCode** will likely prove its worth over a standard IDE plugin. In complex enterprise environments, the logic is often buried three levels deep in an `AbstractService`, and seeing that flattened out into a sequence diagram is a massive time-saver.
+
+Since you're heading toward testing this on your real-world project, here are three "battle-tested" considerations for deep inheritance logic:
+
+### 1. The "Super" Problem
+
+When tracing a method in a child class that calls `super.execute()`, ensure AuraCode doesn't just stop at the override. Visually representing the call passing "up" the inheritance chain before it goes "out" to another service can be a game-changer for debugging.
+
+* **Mermaid Tip:** You can represent the parent class as a separate participant or use a `Note` to clarify that the logic is being handled by a base class.
+
+### 2. Identifying the "Concrete" Path
+
+In deep trees, you often encounter generic types (e.g., `AbstractRepository<T>`). If your tool can resolve that `T` is actually `UserEntity` by looking at the concrete implementation, you’ll have a tool that is significantly more powerful than the generic "top-down" tools that often get lost in the abstraction.
+
+### 3. The "Header" Metadata
+
+Expanding on that header suggestion—since you're doing forensic work—adding a timestamp and the **source git branch** (if detectable) to that Mermaid header can be invaluable.
+
+```mermaid
+---
+title: AuraCode Trace - [ConcreteClassName]::[Method]
+config:
+  theme: neutral
+---
+%% Generated: 2026-04-19
+%% Analysis Mode: Bottom-Up
+```
+
+Good luck with the first run on the live project! There’s nothing quite like that "moment of truth" when you run your own utility against a massive codebase and see the "Aura" of the architecture finally laid out on screen. If you run into any weirdness with how Spring's `@Inherited` annotations or MyBatis proxies interact with your tree-walking logic, I'd be curious to hear how you solve it.

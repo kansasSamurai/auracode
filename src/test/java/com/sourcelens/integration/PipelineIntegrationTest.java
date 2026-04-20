@@ -8,6 +8,10 @@ import picocli.CommandLine;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.ResultSet;
+import java.sql.Statement;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -281,6 +285,54 @@ class PipelineIntegrationTest {
         // ProductServiceImpl implements a different interface — must not bleed in
         assertFalse(diagram.contains("ProductService"),
                 "Diagram must not include ProductService (unrelated hierarchy)");
+    }
+
+    @Test
+    void defaultIndex_filterExternalCalls_noExternalMethodNodes(@TempDir Path tempDir) throws Exception {
+        Path dbFile = tempDir.resolve("test.db");
+
+        int exit = cli("index", "--source", FIXTURE_SOURCE.toString(), "--db", dbFile.toString());
+        assertEquals(0, exit, "index command should exit 0");
+
+        try (Connection conn = DriverManager.getConnection("jdbc:sqlite:" + dbFile.toAbsolutePath());
+             Statement st = conn.createStatement()) {
+
+            // No java.* FQNs — Java SDK calls must be filtered
+            try (ResultSet rs = st.executeQuery(
+                    "SELECT COUNT(*) FROM method_node WHERE fqn LIKE 'java.%'")) {
+                assertEquals(0, rs.getLong(1),
+                        "Default index must not persist Java SDK method nodes");
+            }
+
+            // No unresolved (?) calls — DEBT-002 fallback entries must be filtered
+            try (ResultSet rs = st.executeQuery(
+                    "SELECT COUNT(*) FROM method_node WHERE fqn LIKE '%(?)'")) {
+                assertEquals(0, rs.getLong(1),
+                        "Default index must not persist unresolved external method nodes");
+            }
+        }
+    }
+
+    @Test
+    void includeExternalFlag_presentsExternalMethodNodes(@TempDir Path tempDir) throws Exception {
+        Path dbFile = tempDir.resolve("test.db");
+
+        int exit = cli("index",
+                "--source", FIXTURE_SOURCE.toString(),
+                "--db",     dbFile.toString(),
+                "--include-external");
+        assertEquals(0, exit, "index --include-external should exit 0");
+
+        try (Connection conn = DriverManager.getConnection("jdbc:sqlite:" + dbFile.toAbsolutePath());
+             Statement st = conn.createStatement()) {
+
+            // At least one external node must exist (the fixture uses HashMap, String, etc.)
+            try (ResultSet rs = st.executeQuery(
+                    "SELECT COUNT(*) FROM method_node WHERE fqn LIKE 'java.%' OR fqn LIKE '%(?)'")) {
+                assertTrue(rs.getLong(1) > 0,
+                        "--include-external must persist at least one Java SDK or unresolved node");
+            }
+        }
     }
 
     // -------------------------------------------------------------------------

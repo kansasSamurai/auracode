@@ -29,6 +29,8 @@ import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 /**
@@ -45,7 +47,7 @@ public class SourceIndexer {
         this.dbPath = dbPath;
     }
 
-    public void index(Path sourcePath) {
+    public void index(Path sourcePath, boolean includeExternal) {
         configureParser(sourcePath);
 
         List<String[]> allClassNodes     = new ArrayList<>(); // [fqn, simpleName, packageName, isInterface]
@@ -77,12 +79,16 @@ public class SourceIndexer {
             throw new RuntimeException("Failed to walk source path: " + sourcePath, e);
         }
 
+        Set<String> internalClassFqns = includeExternal
+                ? null
+                : allClassNodes.stream().map(n -> n[0]).collect(Collectors.toSet());
+
         try (CallGraphDb db = new CallGraphDb(dbPath)) {
             db.init();
             db.persistClassNodes(allClassNodes);
             db.persistClassHierarchy(allHierarchyEdges);
             db.persistNodes(allNodes);
-            db.persistEdges(allEdges);
+            db.persistEdges(allEdges, internalClassFqns);
             long nodes = db.countNodes();
             long edges = db.countEdges();
             log.info("Indexed {} files → {} nodes, {} edges persisted to {}",

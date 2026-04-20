@@ -34,6 +34,11 @@ public class IndexCommand implements Runnable {
             description = "Skip the --clean confirmation prompt (for scripting and CI).")
     private boolean yes;
 
+    @Option(names = {"--include-external"},
+            description = "Include call edges to Java SDK and third-party libraries (default: false).",
+            defaultValue = "false")
+    private boolean includeExternal;
+
     @Override
     public void run() {
         Assert.isDirectory(sourcePath, "--source must be an existing directory: " + sourcePath);
@@ -56,7 +61,7 @@ public class IndexCommand implements Runnable {
         }
 
         log.info("Indexing {} → {}", sourcePath.toAbsolutePath(), dbPath.toAbsolutePath());
-        new SourceIndexer(dbPath).index(sourcePath);
+        new SourceIndexer(dbPath).index(sourcePath, includeExternal);
     }
 
     /**

@@ -128,6 +128,9 @@ db=.sourcelens.db
 # index: make --source implicit
 index.source=src/main/java
 
+# index: include Java SDK and third-party call edges (default: false = filtered out)
+# index.include-external=false
+
 # trace: cap traversal depth and default output file
 # trace.depth=30
 # trace.output=trace.txt
