@@ -162,16 +162,16 @@ level, any `UserService` implementation could be injected.
 ./mvnw test
 # Expected: all tests pass (previous 20 + 1 new disambiguation test = 21 total)
 
-java -jar target/sourcelens.jar index \
+java -jar target/auracode.jar index \
     --source test-fixtures/mybatis-sample/src --db target/hier-test.db
 
 # Forward trace branches to both UserService implementations
-java -jar target/sourcelens.jar trace \
+java -jar target/auracode.jar trace \
     --entry "com.example.controller.UserController#getUser(Long)" \
     --db target/hier-test.db
 
 # Inverse trace from UserMapper: CachedUserServiceImpl must NOT appear
-java -jar target/sourcelens.jar trace \
+java -jar target/auracode.jar trace \
     --entry "com.example.mapper.UserMapper#selectById(Long)" \
     --db target/hier-test.db --callers
 ```

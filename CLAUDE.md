@@ -4,6 +4,7 @@
 
 - **Context:** Senior Java Architect (30+ years exp).
 - **Core Principle:** High-craft software engineering. Explicit > Magic.
+- **Project Name:** AuraCode (was SourceLens — source package rename deferred).
 - **Tech Stack:** Java 17+, Maven (no Spring Boot — lean Picocli CLI).
 
 ## Architectural Principles

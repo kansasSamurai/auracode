@@ -10,13 +10,13 @@ ordered edge list to stdout (or a file). The output is the input contract for Fe
 ## CLI
 
 ```plain
-sourcelens trace --entry <fqn> [--db <path>] [--output <path>] [--depth <n>]
+auracode trace --entry <fqn> [--db <path>] [--output <path>] [--depth <n>]
 ```
 
 | Option | Short | Required | Default | Description |
 | ------ | ----- | -------- | ------- | ----------- |
 | `--entry` | `-e` | yes | — | Fully-qualified entry-point method (e.g. `com.example.Foo#bar()`) |
-| `--db` | `-d` | no | `.sourcelens.db` | SQLite database written by `index` |
+| `--db` | `-d` | no | `.auracode.db` | SQLite database written by `index` |
 | `--output` | `-o` | no | stdout | Write edge list to file instead of stdout |
 | `--depth` | `-n` | no | `50` | Maximum DFS depth (guards against very deep graphs) |
 
@@ -97,23 +97,23 @@ WHERE  n1.fqn = ?
 ./mvnw clean package
 
 # Index the test fixture (skip if db already exists)
-java -jar target/sourcelens.jar index --source test-fixtures/mybatis-sample/src --db db/mybatis.db
+java -jar target/auracode.jar index --source test-fixtures/mybatis-sample/src --db db/mybatis.db
 
 # Trace from UserController#getUser — happy path
-java -jar target/sourcelens.jar trace --entry "com.example.controller.UserController#getUser(Long)" --db db/mybatis.db
+java -jar target/auracode.jar trace --entry "com.example.controller.UserController#getUser(Long)" --db db/mybatis.db
 
 # Expected stdout:
 # com.example.controller.UserController#getUser(Long) -> com.example.service.UserServiceImpl#findById(Long)
 # com.example.service.UserServiceImpl#findById(Long) -> com.example.mapper.UserMapper#selectById(Long)
 
 # Error case — entry not in index
-java -jar target/sourcelens.jar trace \
+java -jar target/auracode.jar trace \
   --entry "com.example.Nonexistent#missing()" \
   --db db/mybatis.db
 # Expected: ERROR log "Entry method not found in index: ..." and exit code 1
 
 # Write to file instead of stdout
-java -jar target/sourcelens.jar trace \
+java -jar target/auracode.jar trace \
   --entry "com.example.controller.UserController#getUser(Long)" \
   --db db/mybatis.db \
   --output /tmp/trace.txt

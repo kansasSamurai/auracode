@@ -2,7 +2,7 @@
 
 ## Overview
 
-When SourceLens indexes a real project, `CallEdgeVisitor` emits an edge for every
+When AuraCode indexes a real project, `CallEdgeVisitor` emits an edge for every
 method call in the source tree — including calls into the Java SDK (`java.util.*`,
 `java.lang.*`, etc.) and any third-party library on the classpath.
 
@@ -11,7 +11,7 @@ of low-value entries (no `return_type`, no `class_id`, no hierarchy) and clutter
 traces and diagrams with library internals.
 
 Feature 2.7 suppresses external edges **by default**.  A `--include-external` flag
-(and matching `.sourcelens` config key) restores the previous behaviour when the full
+(and matching `.auracode` config key) restores the previous behaviour when the full
 picture is needed.
 
 ---
@@ -92,7 +92,7 @@ db.persistEdges(allEdges, internalClassFqns);
 # Expected: all tests pass (21 existing + 2 new filter assertions = 23 total)
 
 # Default mode — zero external nodes
-java -jar target/sourcelens.jar index \
+java -jar target/auracode.jar index \
     --source test-fixtures/mybatis-sample/src --db target/filter-test.db
 sqlite3 target/filter-test.db \
     "SELECT COUNT(*) FROM method_node WHERE fqn LIKE 'java.%';"
@@ -103,7 +103,7 @@ sqlite3 target/filter-test.db \
 # Expected: 0
 
 # --include-external — external nodes present
-java -jar target/sourcelens.jar index \
+java -jar target/auracode.jar index \
     --source test-fixtures/mybatis-sample/src \
     --db target/filter-inc-test.db \
     --include-external

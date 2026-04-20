@@ -17,7 +17,7 @@ Per ADR-003, Mermaid `sequenceDiagram` is the canonical Phase 1 output format.
 ## CLI
 
 ```plain
-sourcelens render [--input <file>] [--output <file>]
+auracode render [--input <file>] [--output <file>]
 ```
 
 | Option | Short | Required | Default | Description |
@@ -100,10 +100,10 @@ Participants are declared once, in order of first appearance.
 ./mvnw clean package
 
 # Full pipeline — pipe trace directly into render
-java -jar target/sourcelens.jar trace \
+java -jar target/auracode.jar trace \
   --entry "com.example.controller.UserController#getUser(Long)" \
   --db db/mybatis.db | \
-  java -jar target/sourcelens.jar render
+  java -jar target/auracode.jar render
 
 # Expected stdout:
 # ```mermaid
@@ -116,18 +116,18 @@ java -jar target/sourcelens.jar trace \
 # ```
 
 # Via intermediate files
-java -jar target/sourcelens.jar trace \
+java -jar target/auracode.jar trace \
   --entry "com.example.controller.UserController#getUser(Long)" \
   --db db/mybatis.db \
   --output /tmp/trace.txt
 
-java -jar target/sourcelens.jar render \
+java -jar target/auracode.jar render \
   --input /tmp/trace.txt \
   --output /tmp/diagram.md
 
 cat /tmp/diagram.md
 
 # Error case — input file does not exist
-java -jar target/sourcelens.jar render --input /nonexistent.txt
+java -jar target/auracode.jar render --input /nonexistent.txt
 # Expected: error "Input file not found: ..."
 ```

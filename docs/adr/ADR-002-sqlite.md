@@ -8,7 +8,7 @@
 
 ## Context
 
-After indexing a Java project, SourceLens must persist the call graph so that subsequent `trace`
+After indexing a Java project, AuraCode must persist the call graph so that subsequent `trace`
 and `render` commands can query it without re-parsing source files. A storage format must be chosen.
 
 Candidates evaluated:
@@ -33,7 +33,7 @@ Use **SQLite** via `org.xerial:sqlite-jdbc` (v3.45.1.0).
 1. **Queryable.** SQL joins make it trivial to traverse the call graph, find callers of a method,
    or count edges — none of which are possible without parsing the entire dataset in a flat-file approach.
 
-2. **Single-file portability.** The SQLite database is a single `.sourcelens.db` file in the project
+2. **Single-file portability.** The SQLite database is a single `.auracode.db` file in the project
    root, making it easy to inspect with standard tooling (`sqlite3`, DB Browser for SQLite) and to
    `.gitignore`.
 
@@ -50,7 +50,7 @@ Use **SQLite** via `org.xerial:sqlite-jdbc` (v3.45.1.0).
 
 ## Consequences
 
-- The `.sourcelens.db` file must be added to `.gitignore` to avoid committing project-specific caches.
+- The `.auracode.db` file must be added to `.gitignore` to avoid committing project-specific caches.
 - Cross-platform native library bundling is handled automatically by `sqlite-jdbc`; no user action needed.
 - Full SQL schema is defined in ROADMAP.md Design Notes and will be formalised in `docs/features/` once
   the `index` command is implemented (Phase 1.1).

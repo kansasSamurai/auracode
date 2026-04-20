@@ -2,20 +2,20 @@
 
 ## Overview
 
-The `index` command is the foundation of SourceLens. It walks a Java source tree, parses every
+The `index` command is the foundation of AuraCode. It walks a Java source tree, parses every
 `.java` file with JavaParser, extracts method→method call edges, and persists them to a SQLite
 call-graph database. Subsequent `trace` (1.2) and `render` (1.3) commands are blocked on this.
 
 ## CLI
 
 ```
-sourcelens index --source <path> [--db <path>]
+auracode index --source <path> [--db <path>]
 ```
 
 | Option | Short | Required | Default | Description |
 |--------|-------|----------|---------|-------------|
 | `--source` | `-s` | yes | — | Root directory of Java source to index |
-| `--db` | `-d` | no | `.sourcelens.db` | SQLite output file path |
+| `--db` | `-d` | no | `.auracode.db` | SQLite output file path |
 
 ## Architecture
 
@@ -79,7 +79,7 @@ UserController#getUser → UserServiceImpl#findById → UserMapper#selectById
 |----|-------------|
 | ~~DEBT-001~~ | ~~Nested/anonymous class FQNs are incorrect~~ — **resolved** |
 | DEBT-002 | External-library callee FQNs degrade to `scope#method(?)` — no impact when tracing within own project source. Edge case: library callback/template patterns (e.g. `JdbcTemplate` + `RowMapper`) that call back into user code will break the chain. Deferred to Phase 2. |
-| ~~DEBT-003~~ | ~~`CallGraphDb` has no connection pooling~~ — **not applicable**. Pooling solves concurrent thread contention in long-running processes; SourceLens is neither. The JVM starts, one command executes, the process exits. The `try-with-resources` `AutoCloseable` pattern is the correct design. Closed as a deliberate decision. |
+| ~~DEBT-003~~ | ~~`CallGraphDb` has no connection pooling~~ — **not applicable**. Pooling solves concurrent thread contention in long-running processes; AuraCode is neither. The JVM starts, one command executes, the process exits. The `try-with-resources` `AutoCloseable` pattern is the correct design. Closed as a deliberate decision. |
 | ~~DEBT-004~~ | ~~`IndexCommand` input validation uses plain `if`~~ — **resolved** (`Assert` utility introduced) |
 
 ---
@@ -109,12 +109,12 @@ Added two new options to the `index` command:
 sdk env && ./mvnw clean package
 
 # Self-index
-java -jar target/sourcelens.jar index --source src/main/java --db /tmp/self.db
+java -jar target/auracode.jar index --source src/main/java --db /tmp/self.db
 sqlite3 /tmp/self.db "SELECT fqn FROM method_node;"
 sqlite3 /tmp/self.db "SELECT COUNT(*) FROM call_edge;"
 
 # Index MyBatis fixture
-java -jar target/sourcelens.jar index \
+java -jar target/auracode.jar index \
   --source test-fixtures/mybatis-sample/src \
   --db /tmp/mybatis.db
 

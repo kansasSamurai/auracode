@@ -8,7 +8,7 @@
 
 ## Context
 
-SourceLens is a standalone CLI tool. It needs a framework for argument parsing, subcommand dispatch,
+AuraCode is a standalone CLI tool. It needs a framework for argument parsing, subcommand dispatch,
 `--help` generation, and shell completion. The tool must run without Spring Boot.
 
 Candidates evaluated:
@@ -41,7 +41,7 @@ Use **`info.picocli:picocli`** (v4.7.5) with the `picocli-codegen` annotation pr
    `reflect-config.json` at compile time, enabling future native binary distribution (Phase 3.4)
    without manual reflection configuration.
 
-4. **No Spring Boot dependency.** SourceLens is intentionally lean. Picocli has zero mandatory
+4. **No Spring Boot dependency.** AuraCode is intentionally lean. Picocli has zero mandatory
    transitive dependencies — it is a single JAR.
 
 5. **Rich built-in help.** Auto-generates ANSI-coloured `--help` and `--version` output from

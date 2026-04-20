@@ -8,7 +8,7 @@
 
 ## Context
 
-SourceLens needs to parse Java source files to extract method declarations, method invocations,
+AuraCode needs to parse Java source files to extract method declarations, method invocations,
 and type information in order to build a call graph. Several libraries exist for this purpose.
 
 Candidates evaluated:

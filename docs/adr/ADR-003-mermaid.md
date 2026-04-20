@@ -8,7 +8,7 @@
 
 ## Context
 
-SourceLens's primary output is a sequence diagram representing a call chain. A diagram description
+AuraCode's primary output is a sequence diagram representing a call chain. A diagram description
 language must be chosen. The tool must not require a Java-based renderer, since the output should be
 consumable by developers in their editor, CI pipeline, or documentation site.
 
@@ -40,7 +40,7 @@ Emit **Mermaid** `sequenceDiagram` syntax as the primary output format.
 3. **Native GitHub support.** Fenced code blocks with ` ```mermaid ` are rendered inline in GitHub
    READMEs and PR comments — the most common place developers review architecture.
 
-4. **Lightweight output.** SourceLens emits a plain text string. No binary generation, no external
+4. **Lightweight output.** AuraCode emits a plain text string. No binary generation, no external
    process invocation.
 
 5. **Extensible.** If DOT/JSON output is added later (Phase 2.4), Mermaid remains the default and

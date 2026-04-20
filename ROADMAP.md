@@ -1,4 +1,4 @@
-# SourceLens — ROADMAP
+# AuraCode — ROADMAP
 
 > **Anchor rule:** Before starting any new feature or ADR, check the **Anchor Items** section below.
 > Resolve all blockers listed there first.

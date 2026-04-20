@@ -10,12 +10,12 @@ The test-fixtures/mybatis-sample/ directory exists specifically for this. Once t
 
 ## Step 2: Run the index command against the sample fixture
 
-java -jar target/sourcelens.jar index \
+java -jar target/auracode.jar index \
 --source test-fixtures/mybatis-sample/src \
 --db ./db/test.db
 
 ```plain
-java -jar target/sourcelens.jar index --source test-fixtures/mybatis-sample/src --db ./db/test.db
+java -jar target/auracode.jar index --source test-fixtures/mybatis-sample/src --db ./db/test.db
 ```
 
 ## Step 3: Inspect the SQLite output
@@ -31,11 +31,11 @@ SQLite queries should return rows.
 
 ## Index the test fixture (skip if db already exists)
 
-java -jar target/sourcelens.jar index --source test-fixtures/mybatis-sample/src --db db/mybatis.db
+java -jar target/auracode.jar index --source test-fixtures/mybatis-sample/src --db db/mybatis.db
 
 ## Trace from UserController#getUser — happy path
 
-java -jar target/sourcelens.jar trace --entry "com.example.controller.UserController#getUser(Long)" --db db/mybatis.db
+java -jar target/auracode.jar trace --entry "com.example.controller.UserController#getUser(Long)" --db db/mybatis.db
 
 ## Remove old db as required
 

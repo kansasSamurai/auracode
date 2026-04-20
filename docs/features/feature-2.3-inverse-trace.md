@@ -18,7 +18,7 @@ so the `render` command works on inverse trace output without modification.
 ## CLI
 
 ```bash
-sourcelens trace \
+auracode trace \
   --entry  "<FQN of target method>" \
   --db     <path/to/graph.db> \
   --callers
@@ -140,28 +140,29 @@ The `render` command consumes this output unchanged to produce a Mermaid
 ./mvnw clean package
 
 # Re-index the fixture (delete stale DB first if needed)
-java -jar target/sourcelens.jar index \
+java -jar target/auracode.jar index \
   --source test-fixtures/mybatis-sample/src \
   --db db/mybatis.db
 
 # Flat inverse trace (original behaviour)
-java -jar target/sourcelens.jar trace \
+java -jar target/auracode.jar trace \
   --entry "com.example.mapper.UserMapper#selectById(Long)" \
   --db db/mybatis.db \
   --callers
 
 # Split inverse trace — 3 sections, one per root controller method
-java -jar target/sourcelens.jar trace \
+java -jar target/auracode.jar trace \
   --entry "com.example.mapper.UserMapper#selectById(Long)" \
   --db db/mybatis.db \
   --callers --split
 
 # Pipe split trace into render — produces 3 labelled Mermaid diagrams
-java -jar target/sourcelens.jar trace \
+java -jar target/auracode.jar trace \
   --entry "com.example.mapper.UserMapper#selectById(Long)" \
   --db db/mybatis.db \
   --callers --split | \
-  java -jar target/sourcelens.jar render
+  java -jar target/auracode.jar render
+
 
 # Run tests
 ./mvnw test

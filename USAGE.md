@@ -1,25 +1,25 @@
-# sourcelens(1)
+# auracode(1)
 
 ## NAME
 
-**sourcelens** — static call-graph analysis and Mermaid sequence diagram generation for Java projects
+**auracode** — static call-graph analysis and Mermaid sequence diagram generation for Java projects
 
 ## SYNOPSIS
 
 ```
-sourcelens [--help] [--version] <command> [<args>]
+auracode [--help] [--version] <command> [<args>]
 ```
 
 ```
-sourcelens index   --source <dir>  [--db <file>] [--clean] [--yes] [--include-external]
-sourcelens trace   --entry  <fqn>  [--db <file>] [--output <file>]
-                                   [--depth <n>]  [--callers] [--split]
-sourcelens render  [--input <file>] [--output <file>]
+auracode index   --source <dir>  [--db <file>] [--clean] [--yes] [--include-external]
+auracode trace   --entry  <fqn>  [--db <file>] [--output <file>]
+                                  [--depth <n>]  [--callers] [--split]
+auracode render  [--input <file>] [--output <file>]
 ```
 
 ## DESCRIPTION
 
-**sourcelens** parses Java source trees with a static analyser, builds a method-level
+**auracode** parses Java source trees with a static analyser, builds a method-level
 call graph, and produces Mermaid `sequenceDiagram` blocks that visualise call chains
 and their return types.
 
@@ -42,7 +42,7 @@ Walk a Java source tree, parse every `.java` file, and persist method-call edges
 a SQLite database.
 
 ```
-sourcelens index --source <dir> [--db <file>] [--clean] [--yes]
+auracode index --source <dir> [--db <file>] [--clean] [--yes] [--include-external]
 ```
 
 **Options**
@@ -50,7 +50,7 @@ sourcelens index --source <dir> [--db <file>] [--clean] [--yes]
 | Option | Short | Default | Description |
 |--------|-------|---------|-------------|
 | `--source <dir>` | `-s` | *(required)* | Root directory of the Java source tree to index. |
-| `--db <file>` | `-d` | `.sourcelens.db` | SQLite output file. Created if it does not exist; updated incrementally if it does. |
+| `--db <file>` | `-d` | `.auracode.db` | SQLite output file. Created if it does not exist; updated incrementally if it does. |
 | `--clean` | | false | Delete the existing database before indexing. Prompts for confirmation unless `--yes` is also given. |
 | `--yes` | `-y` | false | Skip the `--clean` confirmation prompt. Intended for scripting and CI environments where no interactive console is available. |
 | `--include-external` | | false | Include call edges to Java SDK and third-party libraries. By default these edges are suppressed so the call graph contains only project-internal method calls. |
@@ -75,8 +75,8 @@ Query the call graph and emit an ordered, depth-first edge list from a given ent
 point.
 
 ```
-sourcelens trace --entry <fqn> [--db <file>] [--output <file>]
-                               [--depth <n>]  [--callers] [--split]
+auracode trace --entry <fqn> [--db <file>] [--output <file>]
+                              [--depth <n>]  [--callers] [--split]
 ```
 
 **Options**
@@ -84,7 +84,7 @@ sourcelens trace --entry <fqn> [--db <file>] [--output <file>]
 | Option | Short | Default | Description |
 |--------|-------|---------|-------------|
 | `--entry <fqn>` | `-e` | *(required)* | Fully-qualified entry-point method (see *FQN Format* below). |
-| `--db <file>` | `-d` | `.sourcelens.db` | SQLite database produced by `index`. |
+| `--db <file>` | `-d` | `.auracode.db` | SQLite database produced by `index`. |
 | `--output <file>` | `-o` | stdout | Write the edge list to a file instead of stdout. |
 | `--depth <n>` | `-n` | `50` | Maximum DFS traversal depth. Prevents runaway traversal on cyclic graphs. |
 | `--callers` | | false | **Inverse mode.** Trace all callers of `--entry` upward through the call graph instead of tracing callees downward. |
@@ -120,7 +120,7 @@ com.example.service.UserServiceImpl#findById(Long) -> com.example.mapper.UserMap
 Convert a trace edge list to one or more fenced Mermaid `sequenceDiagram` blocks.
 
 ```
-sourcelens render [--input <file>] [--output <file>]
+auracode render [--input <file>] [--output <file>]
 ```
 
 **Options**
@@ -204,59 +204,59 @@ Nested classes use `$` as the separator (e.g. `Outer$Inner#method()`).
 
 | Path | Description |
 |------|-------------|
-| `.sourcelens.db` | Default SQLite call-graph database, written by `index` and read by `trace`. |
+| `.auracode.db` | Default SQLite call-graph database, written by `index` and read by `trace`. |
 
 ## EXAMPLES
 
 **Index a project and generate a diagram in one pipeline:**
 
 ```bash
-sourcelens index --source src/main/java --db myproject.db
+auracode index --source src/main/java --db myproject.db
 
-sourcelens trace \
+auracode trace \
     --entry "com.example.controller.UserController#getUser(Long)" \
     --db myproject.db | \
-  sourcelens render --output diagram.md
+  auracode render --output diagram.md
 ```
 
 **Save the trace file for later rendering:**
 
 ```bash
-sourcelens trace \
+auracode trace \
     --entry "com.example.controller.UserController#getUser(Long)" \
     --db myproject.db \
     --output trace.txt
 
-sourcelens render --input trace.txt --output diagram.md
+auracode render --input trace.txt --output diagram.md
 ```
 
 **Inverse trace — who calls `selectById`?**
 
 ```bash
-sourcelens trace \
+auracode trace \
     --entry "com.example.mapper.UserMapper#selectById(Long)" \
     --db myproject.db \
     --callers \
     --output callers.txt
 
-sourcelens render --input callers.txt
+auracode render --input callers.txt
 ```
 
 **Inverse trace split by root caller, rendered to a multi-section diagram:**
 
 ```bash
-sourcelens trace \
+auracode trace \
     --entry "com.example.mapper.UserMapper#selectById(Long)" \
     --db myproject.db \
     --callers \
     --split | \
-  sourcelens render --output split-diagram.md
+  auracode render --output split-diagram.md
 ```
 
 **Limit traversal depth:**
 
 ```bash
-sourcelens trace \
+auracode trace \
     --entry "com.example.controller.UserController#getUser(Long)" \
     --db myproject.db \
     --depth 5

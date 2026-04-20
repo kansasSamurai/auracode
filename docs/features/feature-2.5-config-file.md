@@ -2,9 +2,9 @@
 
 ## Overview
 
-Running sourcelens against a specific project typically requires the same flags every time
+Running auracode against a specific project typically requires the same flags every time
 (`--source src/main/java --db myproject.db`).  Feature 2.5 lets a project commit a
-`.sourcelens` file at its root so those flags become implicit defaults.  CLI flags always
+`.auracode` file at its root so those flags become implicit defaults.  CLI flags always
 take precedence — the config file only fills in values that were not supplied on the command line.
 
 ---
@@ -24,16 +24,16 @@ Both paths are resolved relative to the directory from which the command is run 
 
 | Priority | Path |
 |----------|------|
-| 1 (checked first) | `.sourcelens` |
-| 2 (fallback) | `src/etc/sourcelens/config.properties` |
+| 1 (checked first) | `.auracode` |
+| 2 (fallback) | `src/etc/auracode/config.properties` |
 
 The first file found wins; the other is ignored.  Both files use standard Java `.properties`
 format — no new dependencies are required.
 
-`.sourcelens` is the recommended path for most projects: it lives at the root alongside
+`.auracode` is the recommended path for most projects: it lives at the root alongside
 `pom.xml`, is immediately visible, and is trivial to version-control.
 
-`src/etc/sourcelens/config.properties` is provided as an alternative for teams whose
+`src/etc/auracode/config.properties` is provided as an alternative for teams whose
 conventions prohibit dot-files at the project root (e.g. Maven projects with strict
 `enforcer` rules).  `src/etc` is the industry-standard Maven convention for project
 configuration that is not part of the build artifact.
@@ -88,28 +88,28 @@ Follows the project's interface + DefaultImpl convention:
 
 ## Config file reference
 
-Place this file as `.sourcelens` in your project root and uncomment the keys you want to set.
+Place this file as `.auracode` in your project root and uncomment the keys you want to set.
 
 ```properties
-# .sourcelens — project defaults for sourcelens CLI
+# .auracode — project defaults for auracode CLI
 # CLI flags always override these values.
 # Scoped key (index.db) takes precedence over bare key (db) for that command.
 
 # -----------------------------------------------------------------------
 # Shared defaults (apply to all subcommands that recognise --db)
 # -----------------------------------------------------------------------
-# db=.sourcelens.db
+# db=.auracode.db
 
 # -----------------------------------------------------------------------
 # index subcommand
 # -----------------------------------------------------------------------
 # index.source=src/main/java     # set this to make --source optional on the CLI
-# index.db=.sourcelens.db        # overrides shared 'db' for index only
+# index.db=.auracode.db        # overrides shared 'db' for index only
 
 # -----------------------------------------------------------------------
 # trace subcommand
 # -----------------------------------------------------------------------
-# trace.db=.sourcelens.db        # overrides shared 'db' for trace only
+# trace.db=.auracode.db        # overrides shared 'db' for trace only
 # trace.depth=50
 # trace.callers=false
 # trace.split=false
@@ -128,31 +128,31 @@ Place this file as `.sourcelens` in your project root and uncomment the keys you
 
 ```bash
 # Create a config file in the project root
-cat > .sourcelens <<'EOF'
+cat > .auracode <<'EOF'
 index.source=test-fixtures/mybatis-sample/src
 db=target/demo.db
 EOF
 
 # Run index with no flags — source and db come from config
-java -jar target/sourcelens.jar index
+java -jar target/auracode.jar index
 # Expected: exit 0, target/demo.db created
 
 # Run trace — db comes from config, entry still required on CLI
-java -jar target/sourcelens.jar trace \
+java -jar target/auracode.jar trace \
     --entry "com.example.controller.UserController#getUser(Long)"
 # Expected: trace printed to stdout
 
 # CLI flag overrides config value
-java -jar target/sourcelens.jar trace \
+java -jar target/auracode.jar trace \
     --entry "com.example.controller.UserController#getUser(Long)" \
     --db override.db
 # Expected: uses override.db, not target/demo.db
 
 # Run trace and render
-sourcelens trace --callers --split --entry "com.example.mapper.UserMapper#selectById(Long)" | sourcelens render
+auracode trace --callers --split --entry "com.example.mapper.UserMapper#selectById(Long)" | auracode render
 
 # Clean up
-rm .sourcelens
+rm .auracode
 ```
 
 Run tests:
@@ -173,5 +173,5 @@ Run tests:
   express section-based structure, so when DEBT-011 (explicit interface→impl mappings) is
   addressed it will require either a separate file or a format upgrade.  See DEBT-011.
 - **CWD-relative only.** The tool checks the directory from which it is invoked, not the
-  location of the JAR.  A `~/.sourcelens` user-home fallback is deferred
+  location of the JAR.  A `~/.auracode` user-home fallback is deferred
   (see `// TODO: [DEBT-012]` in `DefaultConfigProvider`).

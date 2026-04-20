@@ -113,10 +113,10 @@ to-->>from: ReturnType
 ## Output example (mybatis-sample fixture)
 
 ```
-$ sourcelens trace \
+$ auracode trace \
     --entry "com.example.controller.UserController#getUser(Long)" \
     --db db/mybatis.db | \
-  sourcelens render
+  auracode render
 ```
 
 ```mermaid
@@ -136,12 +136,12 @@ sequenceDiagram
 
 ```bash
 # Re-index (picks up the new return_type column)
-java -jar target/sourcelens.jar index \
+java -jar target/auracode.jar index \
   --source test-fixtures/mybatis-sample/src \
   --db db/mybatis.db
 
 # Forward trace with returns
-java -jar target/sourcelens.jar trace \
+java -jar target/auracode.jar trace \
   --entry "com.example.controller.UserController#getUser(Long)" \
   --db db/mybatis.db \
   --output trace.txt
@@ -150,7 +150,7 @@ cat trace.txt
 # com.example.controller.UserController#getUser(Long) -> com.example.service.UserServiceImpl#findById(Long) : User
 # com.example.service.UserServiceImpl#findById(Long) -> com.example.mapper.UserMapper#selectById(Long) : User
 
-java -jar target/sourcelens.jar render --input trace.txt
+java -jar target/auracode.jar render --input trace.txt
 
 # Run tests
 ./mvnw test
