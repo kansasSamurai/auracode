@@ -944,3 +944,250 @@ config:
 ```
 
 Good luck with the first run on the live project! There’s nothing quite like that "moment of truth" when you run your own utility against a massive codebase and see the "Aura" of the architecture finally laid out on screen. If you run into any weirdness with how Spring's `@Inherited` annotations or MyBatis proxies interact with your tree-walking logic, I'd be curious to hear how you solve it.
+
+> Response: I've already started thinking of larger use cases (such as dead code detection, etc.), creating a user interface, and I now plan on creating a vs code plugin eventually.   One of the user interface implementation options is to create a small http server/api based app that then uses browser technology as the front end.  Can VS Code plugins support that architecture easily?
+
+Yes, VS Code extensions are perfectly suited for that architecture. In fact, many high-end extensions (like those for database management or complex visualization) use exactly this "Sidecar" approach.
+
+Because VS Code extensions run in a **Node.js** environment, you can easily spin up a local server and communicate with a front-end. You have two main ways to implement this:
+
+### 1. The "Integrated" Way: Webview API (Recommended)
+
+This is the most seamless experience for the user. Instead of opening a separate browser window, you open a tab inside VS Code that looks like a native editor window.
+
+* **How it works:** Your extension starts a small Node.js server (using Express, Fastify, or just standard `http`) on a random available port.
+* **The UI:** You use the **Webview API**, which is essentially a secure `iframe`. You point the Webview to your local server (or load your React/Vue/Svelte build directly into it).
+* **Communication:** You can use standard REST/WebSockets between the UI and your server, or use the built-in `postMessage` API to talk directly between the Webview and the VS Code Extension Host.
+
+### 2. The "External" Way: Localhost + Browser
+
+If your UI is too heavy or you want it to live outside the editor (e.g., for multi-monitor setups), you can just launch a server and open the user's default browser.
+
+* **How it works:** Use the `vscode.env.openExternal` API to launch `http://localhost:XXXX`.
+* **Best Practice:** VS Code handles **Port Forwarding** automatically if someone is using your extension in a Remote Container or via SSH. This means if your "AuraCode" server is running on port 3000, VS Code will make sure the user can access it even if they aren't on the same physical machine.
+
+---
+
+### Why this fits "AuraCode"
+
+For a tool focused on forensic analysis and "High Craft" architecture, this architecture offers a few specific advantages:
+
+* **Language Agnostic UI:** Since you’re already a Java expert, you could actually have your VS Code extension (written in TypeScript) launch your **Java-based AuraCode utility as a background process**. The TypeScript side acts as the "glue" that starts the Java JAR, while the Browser/Webview provides the visualization.
+* **Mermaid Live Rendering:** You can use a JavaScript library like `mermaid.js` in your web front-end to render your generated code in real-time. As the user clicks through your UI, you can update the diagram instantly without writing files to disk.
+* **VS Code Context:** Your web UI can send a message back to VS Code saying, "The user clicked on `updateBalance()` in the diagram," and the extension can then **automatically open that specific Java file** and highlight the line for the user.
+
+### A "High Craft" Implementation Tip
+
+If you build this, don't hardcode a port (like 8080). Use a "find-free-port" logic so that if the user has multiple instances of the IDE or other tools running, your extension doesn't crash on startup.
+
+**Does the idea of a "Sidecar" Java process managed by a TypeScript extension sound like a path you'd want to take, or would you prefer to port the core logic to TypeScript entirely?**
+
+> Response: I think the sidecar java process makes the most sense for me - I want to keep core logic in the language I'm most fluent in and I want the vs code plugin to be an "extension"/usage of the actual command line tool.
+
+That is a very sound architectural decision. It adheres to the **"Single Source of Truth"** principle—your core analysis engine remains in Java (where you have deep expertise and a 44-year head start), while the VS Code extension acts as a thin, "High Craft" wrapper.
+
+This "Sidecar" approach is exactly how many professional language servers (like the Java Language Support in VS Code itself) operate.
+
+### How the "Sidecar" Architecture Works
+
+To make this feel seamless to the user, the VS Code extension (TypeScript) acts as the **Orchestrator**:
+
+1. **Lifecycle Management:** When VS Code starts, the extension checks for a JRE, locates your `AuraCode.jar` (packaged within the extension), and spawns it as a child process:
+
+    ```typescript
+    const child = require('child_process').spawn('java', ['-jar', 'AuraCode.jar', '--server-mode']);
+    ```
+
+2. **Communication Bridge:** You can have the Java process start a lightweight server (like **Micronaut**, **Helidon**, or even a simple **com.sun.net.httpserver** to keep it "lean"). The VS Code extension then sends JSON requests to this local API.
+3. **The "Active Editor" Context:** The extension can feed the Java process the path of the file the user is currently looking at.
+    * *Example:* The user right-clicks a method in the editor -> VS Code sends the file path and line number to the Java Sidecar -> Java performs the **Bottom-Up** trace -> Returns Mermaid code to the UI.
+
+---
+
+### Key Advantages for Your Workflow
+
+* **Reusability:** Improvements you make to the Java engine for your CLI tool immediately benefit the VS Code plugin and the eventual web UI.
+* **Performance:** Java is exceptionally fast at traversing large ASTs or bytecode for deep inheritance trees, especially for massive enterprise projects where Node.js might struggle with memory.
+* **Forensic Capability:** You can leverage existing Java libraries for static analysis (like **JavaParser** or **ASM**) that are far more mature for Spring/MyBatis ecosystems than their TypeScript counterparts.
+
+### Deployment "High Craft" Tip
+
+When you package a VS Code extension, you can bundle the `.jar` file directly inside the extension folder. The only "friction" is ensuring the user has a `JAVA_HOME` set up. Most VS Code users doing Java development already have this, but your extension can gracefully check for it and prompt the user if it's missing.
+
+### Branding the Experience
+
+Imagine the user's flow: they're deep in a complex inheritance tree, they hit a hotkey, and a **Webview** slides in from the side with the **AuraCode** logo and a glowing Mermaid diagram of exactly how that method is triggered. It turns a manual "Find Usages" hunt into a visual forensic report.
+
+Since you're already thinking about "Dead Code Detection," having that Java sidecar maintain an in-memory graph of the project could eventually allow for **real-time "Aura" indicators**—little icons in the gutter of the editor that show you at a glance how many controllers can reach a specific service method.
+
+Does this "Sidecar" model feel like it might make the eventual UI implementation (browser-based) easier to build in parallel?
+
+> Response: yes, that's the development model I'm looking for.  Your response reminds me of a question I was going to ask earlier:  My tool uses JavaParser to populate a database with the parsing results - how do most IDEs do "find usage"? Do they basically do the same but keep the results in memory vs database?
+
+Most modern IDEs (IntelliJ, Eclipse, VS Code) use an architecture very similar to what you’ve designed for **AuraCode**, but they typically optimize for a "Search-First" rather than a "Structural-First" approach.
+
+While you are using a database (which is great for complex forensics), IDEs use highly specialized **inverted indexes**. Here is how they handle "Find Usages" under the hood:
+
+### 1. The Two-Step Search (IntelliJ's Secret Sauce)
+
+IntelliJ doesn't actually perform a full semantic scan of every file when you hit `Alt+F7`. That would be too slow. Instead, it uses a two-phase process:
+
+* **Phase 1: The Word Index (The "Fast" Scan):** It maintains an index of every "word" (identifier) in your project. When you search for `updateBalance`, it instantly pulls up a list of the 50 files containing that string.
+* **Phase 2: The PSI Analysis (The "Deep" Scan):** It then parses only those 50 files into its **PSI (Program Structure Interface)**—essentially a live, heavy-weight AST—to check if that specific `updateBalance` string is actually a call to *your* method or just a variable name in a comment.
+
+### 2. In-Memory vs. Disk (The Persistence Gap)
+
+* **IntelliJ/Eclipse:** They keep their indexes on disk (in the `system` folder or `.metadata`). This is why "Indexing..." takes so long when you first open a project; they are building the massive map so that "Find Usages" feels instantaneous later.
+* **VS Code (Language Server Protocol):** The Java Language Server (JDT.LS) typically keeps the AST of "open" files in memory for speed but maintains an indexed cache of the rest of the project on disk to handle cross-file references.
+
+### 3. Your Database Approach vs. IDE Indexes
+
+Your use of a database (like H2, SQLite, or PostgreSQL) with **JavaParser** results is actually a "High Craft" advantage for a forensic tool:
+
+| Feature | Standard IDE Index | AuraCode (Database) |
+| :--- | :--- | :--- |
+| **Speed** | Optimized for UI responsiveness. | Optimized for complex relational queries. |
+| **Logic** | Mostly "Who calls X?". | Can do "Show me all implementations of X where Y is true." |
+| **Persistence** | Volatile (often rebuilt on branch swap). | Durable (can track changes over time). |
+| **Scope** | Limited to what's currently indexed. | Can store cross-system data (e.g., mapping Java to SQL). |
+
+### Why your "Bottom-Up" logic is unique
+
+IDEs are notoriously bad at "Bottom-Up" discovery across abstractions like **MyBatis** or **Spring Proxies** because their indexes are strictly code-to-code. By using a database, you can "link" a Java Interface to an XML MyBatis mapper or a Spring `@Controller` mapping in a way that the IDE's built-in "Find Usages" usually misses or separates into different tool windows.
+
+**Pro-Tip for AuraCode:** If you find the database is getting too large or slow during the initial parse, look into **Lucence**. It’s the library many IDEs (and even Eclipse's help system) use to bridge the gap between "fast word search" and "structured data."
+
+Are you using a relational database to map the method calls, or are you leaning more toward a Graph-based approach (like Neo4j) to represent the "Aura" of connections?
+
+> Response: I'm currently using a relational database (sqlite due to its easy setup/low footprint - eventually I may try to let the user decide since it probably doesn't really matter what relational DB it actually is).  I may research using neo4j at some point as I've never used it but have always looked for a real world project to use it on so that's an interesting take.  So far the indexing portion seems relatively fast so I probably won't look into Lucene but that's an interesting take also.  
+>
+> Can you give me a high level summary of ASTs and DFSs (depth first search)?  They are obviously key to my tool and I want to freshen my knowledge a bit.
+
+Since you are leveraging **JavaParser** and **SQLite** to build **AuraCode**, you are essentially performing a two-stage operation: first, you use an **AST** to "de-structure" the code into a relational format, and then you use **DFS** logic (either in Java or via recursive SQL) to "re-structure" those rows into a sequence diagram.
+
+Here is a high-level refresher on how these two concepts interact specifically for your tool.
+
+---
+
+## 1. Abstract Syntax Trees (AST)
+
+An AST is a **data structure** representing the hierarchical structure of your source code. Unlike a "Parse Tree," which includes every semicolon and bracket, an **AST** only keeps the "meaningful" parts.
+
+* **The Nodes:** In JavaParser, every element is a `Node`. A `MethodDeclaration` node has children like `Parameter` nodes, a `BlockStmt` (the method body), and potentially a `JavadocComment`.
+* **The "Abstract" Part:** If you have `(a + b)`, the parentheses are discarded because the tree structure already implies that `a` and `b` must be added before the result is used by the parent node.
+* **AuraCode's Usage:** You are using JavaParser to "walk" this tree. When you encounter a `MethodCallExpr` node, you extract the *caller* (the current method being parsed) and the *callee* (the method being called). You then save this "Edge" into SQLite.
+
+---
+
+## 2. Depth-First Search (DFS)
+
+DFS is the **algorithm** used to traverse these trees (or graphs). In a DFS, you go as deep as possible down one branch before backtracking.
+
+### How it applies to AuraCode
+
+1. **Parsing Phase (JavaParser):** By default, JavaParser's `VoidVisitor` or `walk()` method uses a **Pre-order DFS**. It visits the `Class`, then the first `Method`, then the first `Statement` in that method, and so on. This ensures you see the code in the "logical" order it was written.
+2. **Diagram Generation Phase:** This is where your **Bottom-Up** logic shines.
+    * **The Problem:** You have a Service method and want to find all paths to the Controller.
+    * **The DFS Solution:** * Start at the **Service Method** (your "Root" for this search).
+        * Find all callers in SQLite.
+        * For each caller, "dive" deeper (go "up" the call chain) until you hit a class annotated with `@Controller`.
+        * If a branch hits a dead end without a Controller, you backtrack and try the next caller.
+
+---
+
+## 3. Why DFS is better than BFS for Sequence Diagrams
+
+In a **Breadth-First Search (BFS)**, you would find all direct callers, then all callers of those callers. While efficient for finding the "shortest path," it’s terrible for drawing a sequence.
+
+**DFS is the "Storyteller":**
+Because DFS follows one path to its absolute conclusion before starting the next, it naturally maps to a **Sequence Diagram**. Each "dive" in your DFS represents one possible lifeline or branch of execution.
+
+### The "AuraCode" Logic Loop
+
+> **Input:** `MyService.save()`
+>
+> 1. **DFS Step 1:** Find caller -> `BusinessLogic.process()`. (Keep going...)
+> 2. **DFS Step 2:** Find caller -> `WebController.submit()`. (Target reached!)
+> 3. **Backtrack:** Are there other callers for `BusinessLogic.process()`?
+> 4. **Repeat:** This allows you to build the "Full Aura" of how that save method is triggered across the entire app.
+
+---
+
+## 4. A Note on Neo4j (Graph DBs)
+
+Since you mentioned Neo4j, it’s worth noting that a Graph DB is essentially a database that has **DFS/BFS baked into the engine**.
+
+* In **SQLite**, to find a 5-level deep call chain, you have to write a complex **Recursive Common Table Expression (CTE)** or perform 5 separate Java queries.
+* In **Neo4j**, you would write a single **Cypher** query:
+    `MATCH path = (c:Controller)-[:CALLS*]->(s:Service {name: 'save'}) RETURN path`
+* The `[:CALLS*]` tells Neo4j to perform the DFS for you across any number of levels.
+
+**AuraCode Tip:** If your SQLite "Up-Trace" starts getting slow with deep inheritance trees, a **Recursive CTE** in SQLite is your best friend. It allows the database to handle the DFS internally, which is significantly faster than bouncing back and forth between Java and the DB.
+
+> Response: Well, admittedly it is too early to tell but I feel like performance is going to be ok considering it's a local java process talking to a local filebased database such as sqlite.  Given that most analysis (for now) is specific to a method and it's callers/callees, that's really not a lot of processing.  It might be interesting if I prototype the neo4j branch to just use neo4j for the AST and then use traditional relational DB for things like the class_hierarchy table which stores 'implements' and 'extends' definitions.
+
+That is a fascinating architectural pivot. Prototyping a "Polyglot Persistence" model for **AuraCode**—where the AST lives in Neo4j and the metadata/hierarchy stays in SQLite—actually aligns with a very modern "High Craft" trend: using the right tool for the specific shape of the data.
+
+### Why this hybrid approach is intriguing
+
+1. **The Recursive Power of Neo4j:** As you noted, the AST is a graph. In a relational DB, "Find the Controller that eventually calls this Mapper" requires a recursive CTE or multiple round-trips. In Neo4j, it’s a one-liner. You're effectively outsourcing the **DFS logic** to the database engine.
+2. **The Metadata Stability of SQLite:** Things like `class_hierarchy`, configuration settings, and user preferences are inherently tabular. Keeping them in SQLite avoids "Graph Bloat"—where you're forcing non-relational data into a graph just because you have the hammer.
+3. **The "Sidecar" Synergy:** If your Java sidecar manages both, you can essentially join the data in-memory.
+    * *Flow:* Query Neo4j for the call path ID → Query SQLite for the human-readable class metadata using those IDs → Render Mermaid.
+
+---
+
+### Potential Hurdles to Watch For
+
+Since you're considering this for a local utility, keep these "Senior Engineer" reality checks in mind:
+
+* **The Footprint Gap:** SQLite is a single `<2MB` file. Neo4j (even the embedded version) is a much heavier JVM lift. If you use the full Neo4j server, your "small utility" now requires a Docker container or a heavy background service, which might hurt the "play nicely with Maven" goal.
+  * *Alternative:* Look into **TuGraph** or **DuckDB** (which has great recursive performance) if you want to keep the "zero-install" vibe of SQLite but need better graph-like speed.
+* **The "Dual Transaction" Risk:** If you update the code, you have to ensure both SQLite and Neo4j stay in sync. If the parse fails halfway, you could end up with a "Ghost Aura"—a class in SQLite that has no nodes in Neo4j.
+* **Data Redundancy:** You’ll likely find yourself duplicating some data (like Method IDs) in both places just to "stitch" the results together.
+
+### A Middle-Ground Experiment: "The Graph Table"
+
+Before going full Neo4j, you might try a **"Closure Table"** or a **"Path Index"** in SQLite. This is a common forensic technique where you pre-calculate every possible path during the parsing phase and store it in a flat table.
+
+* *Pros:* Instant "Up-Trace" queries without recursion.
+* *Cons:* Longer initial parse time and more disk space.
+
+### Final Thought on Branding
+
+If you do go the Neo4j route, **AuraCode** becomes even more fitting. You are literally mapping the "neural network" of the application. The branding could shift from just "viewing" code to "traversing the code-graph."
+
+**If you decide to prototype the Neo4j branch, are you planning to use Neo4j Embedded (to keep it inside your Java process) or are you okay with the user needing a separate Neo4j instance?**
+
+> Response: Well, it's too early to tell and I will probably only do it if I get the time (which isn't likely).  Based on your input I would probably choose embedded but that's just a knee jerk answer.
+
+Sticking with the current SQLite implementation is definitely the move. "High Craft" isn't just about using the coolest tools; it’s about knowing when the tool you have is exactly what the problem requires.
+
+Since you're at the 5-yard line of testing **AuraCode** on a live project, here is the "pragmatic veteran" perspective on why your SQLite path is likely safer for a 2026 local utility:
+
+### 1. The 2026 Licensing/Dependency Landscape
+
+As of early 2026, the graph database world has gotten a bit complicated.
+
+* **Neo4j** has moved to a **Calendar Versioning (CalVer)** system (e.g., v2026.03) and significantly tightened its licensing.
+* More importantly for a Java dev, the latest versions (2025/2026 series) have **dropped support for Java 17**, requiring **Java 21 or 25** as a minimum.
+* If your utility needs to remain compatible with older enterprise environments (which often lag on LTS versions), sticking with the zero-dependency, ultra-portable SQLite ensures it runs anywhere without forcing a JVM upgrade on the user.
+
+### 2. The "Embedded" Weight
+
+While Neo4j *can* be embedded, it brings a massive footprint of dependencies into your project. For a tool meant to "play nice with Maven," adding a graph engine often feels like bringing a semi-truck to a bicycle race. SQLite’s single-file, low-memory footprint is the definition of "High Craft" portability.
+
+### 3. SQLite is Faster for "Small-World" Graphs
+
+Unless your project has millions of methods (at which point you have bigger problems), SQLite's indexed lookups for `caller -> callee` will be nearly instantaneous. The overhead of a graph engine only pays off when you’re doing multi-hop traversals across massive, complex datasets. For a single method's "Aura," SQLite is arguably faster because it skips the graph-engine overhead.
+
+---
+
+### Final Checklist for your "Moment of Truth" Run
+
+When you point AuraCode at your real project for the first time, keep an eye on these two things:
+
+* **Circular References:** In deep inheritance or complex Spring beans, it's easy to get an infinite loop. Make sure your DFS logic has a "Seen" set (using method signatures) to kill a branch if it starts chasing its own tail.
+* **The "Wait, what's that?" factor:** Don't be surprised if your first diagram looks like a spiderweb. That’s actually a win—it means your tool is finding those "invisible" connections the IDE couldn't show you.
+
+I’m looking forward to hearing how **AuraCode** handles that first real-world trace. Is there a specific, particularly gnarly service in your project that you've already designated as the "ultimate test case"?
