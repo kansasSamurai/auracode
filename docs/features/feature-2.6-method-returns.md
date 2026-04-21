@@ -168,3 +168,27 @@ java -jar target/auracode.jar render --input trace.txt
 - External-library callees (unresolved by JavaParser) have no return type in the DB and
   produce no return arrow.  This is acceptable because those edges already degrade
   gracefully (DEBT-002).
+
+---
+
+## Revision History
+
+### 2.6r1 — Stack-based interleaved return arrows (2026-04-20)
+
+**Problem:** The original two-pass approach (all forwards, then all returns reversed)
+placed return arrows correctly only for purely nested/DFS call chains. Flat sequential
+calls from the same caller produced a bundle of return arrows at the end of the diagram
+in reverse-call order, which was visually misleading. Example: a method that calls
+`insert(User)` (returns `int`) followed by `selectById(Long)` (returns `User`) showed
+both return arrows after both forward calls, with `User` before `int` due to reversal.
+
+**Fix:** `writeDiagram` was replaced with a stack-based single-pass algorithm.
+Before emitting each forward arrow, the stack is drained of any stacked entries whose
+`calleeFqn` does not match the current edge's `callerFqn` — those entries have
+"finished" and their return arrows are emitted at the correct position. The stack is
+fully drained after all edges are processed.
+
+`Collections.reverse` is no longer used. `ArrayDeque`/`Deque` added; `Collections`
+import removed. `emitReturn(Edge, PrintWriter)` extracted as a private helper.
+
+Both nested/DFS and flat-sequential traces now produce correct interleaving.

@@ -5,6 +5,9 @@ target/
 # Where I store the database when testing
 db/
 
+# auracode runtime files
+.auracode
+
 # Ignore log files
 *.log
 

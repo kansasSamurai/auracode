@@ -225,7 +225,11 @@ public class SourceIndexer {
             String callerFqn        = ctx[0];
             String callerReturnType = ctx[1];
             String calleeFqn        = resolveCallee(n);
-            edges.add(new String[]{callerFqn, calleeFqn, callerReturnType, String.valueOf(++currentSeq)});
+            boolean isArgCall = n.getParentNode()
+                .map(p -> p instanceof MethodCallExpr mce && mce.getArguments().contains(n))
+                .orElse(false);
+            edges.add(new String[]{callerFqn, calleeFqn, callerReturnType,
+                    String.valueOf(++currentSeq), isArgCall ? "1" : "0"});
             super.visit(n, ctx);
         }
 

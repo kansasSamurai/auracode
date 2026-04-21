@@ -12,8 +12,9 @@ import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
-import java.util.Collections;
+import java.util.Deque;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
@@ -94,11 +95,12 @@ public class RenderCommand implements Runnable {
     /**
      * Emits a fenced Mermaid {@code sequenceDiagram} block.
      *
-     * Forward call arrows ({@code ->>}) are emitted in edge order.
-     * Dashed return arrows ({@code -->>}) are then emitted in reverse order so
-     * that each callee "returns" to its caller after the full call stack has been
-     * shown.  {@code void} returns and edges with no resolved return type are
-     * silently suppressed.
+     * Uses a stack-based single-pass algorithm to interleave forward call arrows
+     * ({@code ->>}) with dashed return arrows ({@code -->>}) at the correct position.
+     * Before emitting each forward edge, any stacked edges whose callee is not the
+     * current caller are popped and their return arrows emitted — these represent
+     * sub-calls that have "finished". The stack is drained after all edges.
+     * {@code void} returns and edges with no resolved return type are silently suppressed.
      */
     private static void writeDiagram(List<Edge> edges, Set<String> participants, PrintWriter w) {
         w.println("```mermaid");
@@ -106,24 +108,29 @@ public class RenderCommand implements Runnable {
         for (String p : participants) {
             w.println("    participant " + p);
         }
-        // Forward call arrows
+
+        Deque<Edge> stack = new ArrayDeque<>();
         for (Edge edge : edges) {
-            String from = toParticipant(edge.callerFqn());
-            String to   = toParticipant(edge.calleeFqn());
-            String msg  = toMessage(edge.calleeFqn());
-            w.println("    " + from + "->>" + to + ": " + msg);
+            while (!stack.isEmpty() && !stack.peek().calleeFqn().equals(edge.callerFqn())) {
+                emitReturn(stack.pop(), w);
+            }
+            w.println("    " + toParticipant(edge.callerFqn())
+                    + "->>" + toParticipant(edge.calleeFqn())
+                    + ": " + toMessage(edge.calleeFqn()));
+            stack.push(edge);
         }
-        // Return arrows — reversed, void / unknown suppressed
-        List<Edge> reversed = new ArrayList<>(edges);
-        Collections.reverse(reversed);
-        for (Edge edge : reversed) {
-            String rt = edge.returnType();
-            if (rt == null || rt.isEmpty() || rt.equals("void")) continue;
-            String from = toParticipant(edge.callerFqn());
-            String to   = toParticipant(edge.calleeFqn());
-            w.println("    " + to + "-->>" + from + ": " + rt);
+        while (!stack.isEmpty()) {
+            emitReturn(stack.pop(), w);
         }
+
         w.println("```");
+    }
+
+    private static void emitReturn(Edge edge, PrintWriter w) {
+        String rt = edge.returnType();
+        if (rt == null || rt.isEmpty() || rt.equals("void")) return;
+        w.println("    " + toParticipant(edge.calleeFqn())
+                + "-->>" + toParticipant(edge.callerFqn()) + ": " + rt);
     }
 
     // -------------------------------------------------------------------------

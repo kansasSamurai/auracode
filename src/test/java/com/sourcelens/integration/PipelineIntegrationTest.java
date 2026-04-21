@@ -119,6 +119,12 @@ class PipelineIntegrationTest {
         // ProductServiceImpl must NOT appear — it implements an unrelated interface
         assertFalse(diagram.contains("ProductService"),
                 "Diagram must not contain ProductService (unrelated hierarchy)");
+
+        // Feature 2.6r1: stack-based render — UM return must appear BEFORE UC→CSI forward call
+        int umReturnIdx   = diagram.indexOf("UserMapper-->>UserServiceImpl: User");
+        int csiForwardIdx = diagram.indexOf("UserController->>CachedUserServiceImpl: findById");
+        assertTrue(umReturnIdx >= 0 && csiForwardIdx >= 0 && umReturnIdx < csiForwardIdx,
+                "UserMapper return arrow must appear before CachedUserServiceImpl forward call (interleaved render)");
     }
 
     @Test
@@ -336,6 +342,111 @@ class PipelineIntegrationTest {
                         "--include-external must persist at least one Java SDK or unresolved node");
             }
         }
+    }
+
+    @Test
+    void stackBasedRender_createUser_returnsInterleavedWithForwardCalls(
+            @TempDir Path tempDir) throws IOException {
+
+        Path dbFile      = tempDir.resolve("test.db");
+        Path traceFile   = tempDir.resolve("trace.txt");
+        Path diagramFile = tempDir.resolve("diagram.md");
+
+        cli("index", "--source", FIXTURE_SOURCE.toString(), "--db", dbFile.toString());
+        cli("trace",
+                "--entry",  "com.example.service.UserServiceImpl#createUser(String, String)",
+                "--db",     dbFile.toString(),
+                "--output", traceFile.toString());
+        cli("render", "--input", traceFile.toString(), "--output", diagramFile.toString());
+
+        String diagram = Files.readString(diagramFile);
+
+        int insertForwardIdx = diagram.indexOf("UserServiceImpl->>UserMapper: insert(User)");
+        int insertReturnIdx  = diagram.indexOf("UserMapper-->>UserServiceImpl: int");
+        int selectForwardIdx = diagram.indexOf("UserServiceImpl->>UserMapper: selectById(Long)");
+
+        assertTrue(insertForwardIdx >= 0, "insert forward call must appear in diagram");
+        assertTrue(insertReturnIdx  >= 0, "insert int return must appear in diagram");
+        assertTrue(selectForwardIdx >= 0, "selectById forward call must appear in diagram");
+
+        assertTrue(insertForwardIdx < insertReturnIdx,
+                "insert forward must appear before int return arrow");
+        assertTrue(insertReturnIdx < selectForwardIdx,
+                "int return arrow must appear before selectById forward call (stack-based interleaving)");
+    }
+
+    @Test
+    void argCallTagging_createUser_getIdTaggedAsArgCall(@TempDir Path tempDir) throws Exception {
+        Path dbFile = tempDir.resolve("test.db");
+
+        int exit = cli("index", "--source", FIXTURE_SOURCE.toString(), "--db", dbFile.toString());
+        assertEquals(0, exit, "index command should exit 0");
+
+        try (Connection conn = DriverManager.getConnection("jdbc:sqlite:" + dbFile.toAbsolutePath());
+             PreparedStatement ps = conn.prepareStatement("""
+                     SELECT n2.fqn, e.is_arg_call
+                     FROM   method_node n1
+                     JOIN   call_edge   e  ON e.caller_id = n1.id
+                     JOIN   method_node n2 ON n2.id       = e.callee_id
+                     WHERE  n1.fqn = ?
+                     ORDER BY e.call_sequence
+                     """)) {
+            ps.setString(1, "com.example.service.UserServiceImpl#createUser(String, String)");
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    String calleeName = rs.getString(1);
+                    int isArgCall     = rs.getInt(2);
+                    if (calleeName.contains("getId")) {
+                        assertEquals(1, isArgCall,
+                                "User#getId() is an argument to selectById — must be tagged is_arg_call=1");
+                    } else {
+                        assertEquals(0, isArgCall,
+                                calleeName + " is a top-level call — must have is_arg_call=0");
+                    }
+                }
+            }
+        }
+    }
+
+    @Test
+    void argCallSuppression_defaultTrace_excludesArgCalls(@TempDir Path tempDir) throws Exception {
+        Path dbFile    = tempDir.resolve("test.db");
+        Path traceFile = tempDir.resolve("trace.txt");
+
+        cli("index", "--source", FIXTURE_SOURCE.toString(), "--db", dbFile.toString());
+        int traceExit = cli("trace",
+                "--entry",  "com.example.service.UserServiceImpl#createUser(String, String)",
+                "--db",     dbFile.toString(),
+                "--output", traceFile.toString());
+
+        assertEquals(0, traceExit, "trace command should exit 0");
+        String trace = Files.readString(traceFile);
+
+        assertTrue(trace.contains("selectById"),
+                "Default trace must include selectById (top-level call)");
+        assertFalse(trace.contains("getId"),
+                "Default trace must NOT include getId (argument-position call)");
+    }
+
+    @Test
+    void argCallSuppression_includeArgCallsFlag_surfacesArgCalls(@TempDir Path tempDir) throws Exception {
+        Path dbFile    = tempDir.resolve("test.db");
+        Path traceFile = tempDir.resolve("trace.txt");
+
+        cli("index", "--source", FIXTURE_SOURCE.toString(), "--db", dbFile.toString());
+        int traceExit = cli("trace",
+                "--entry",           "com.example.service.UserServiceImpl#createUser(String, String)",
+                "--db",              dbFile.toString(),
+                "--output",          traceFile.toString(),
+                "--include-arg-calls");
+
+        assertEquals(0, traceExit, "trace --include-arg-calls should exit 0");
+        String trace = Files.readString(traceFile);
+
+        assertTrue(trace.contains("selectById"),
+                "--include-arg-calls trace must include selectById");
+        assertTrue(trace.contains("getId"),
+                "--include-arg-calls trace must include getId (argument-position call)");
     }
 
     @Test

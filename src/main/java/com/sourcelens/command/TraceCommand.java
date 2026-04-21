@@ -52,6 +52,10 @@ public class TraceCommand implements Runnable {
             description = "Split output by root caller: one section per independent call chain. Use with --callers.")
     private boolean split;
 
+    @Option(names = {"--include-arg-calls"},
+            description = "Include method calls that appear as arguments to other calls (default: false).")
+    private boolean includeArgCalls;
+
     @Override
     public void run() {
         Assert.fileExists(dbPath, "Database not found — run 'index' first: " + dbPath.toAbsolutePath());
@@ -92,7 +96,7 @@ public class TraceCommand implements Runnable {
         }
         visited.add(fqn);
 
-        List<String> callees = db.getCalleeFqns(fqn);
+        List<String> callees = db.getCalleeFqns(fqn, includeArgCalls);
         for (String callee : callees) {
             // If the stored callee is an interface/abstract with no outgoing edges,
             // look for a concrete implementation that does.
