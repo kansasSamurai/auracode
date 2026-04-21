@@ -192,6 +192,7 @@ public class SourceIndexer {
         private final CompilationUnit cu;
         private final List<String[]> edges;
         private final List<String[]> nodes;
+        private int currentSeq = 0;
 
         CallEdgeVisitor(CompilationUnit cu, List<String[]> edges, List<String[]> nodes) {
             this.cu = cu;
@@ -201,6 +202,7 @@ public class SourceIndexer {
 
         @Override
         public void visit(MethodDeclaration n, String[] ignored) {
+            currentSeq = 0;
             String callerFqn  = buildCallerFqn(n);
             String returnType = n.getType().asString();
             int hash = callerFqn.indexOf('#');
@@ -223,7 +225,7 @@ public class SourceIndexer {
             String callerFqn        = ctx[0];
             String callerReturnType = ctx[1];
             String calleeFqn        = resolveCallee(n);
-            edges.add(new String[]{callerFqn, calleeFqn, callerReturnType});
+            edges.add(new String[]{callerFqn, calleeFqn, callerReturnType, String.valueOf(++currentSeq)});
             super.visit(n, ctx);
         }
 

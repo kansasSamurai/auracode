@@ -10,6 +10,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.sql.Connection;
 import java.sql.DriverManager;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.Statement;
 
@@ -17,6 +18,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -333,6 +336,55 @@ class PipelineIntegrationTest {
                         "--include-external must persist at least one Java SDK or unresolved node");
             }
         }
+    }
+
+    @Test
+    void callOrderPreserved_createUser_calleesInSourceOrder(@TempDir Path tempDir) throws Exception {
+        Path dbFile = tempDir.resolve("test.db");
+
+        int exit = cli("index", "--source", FIXTURE_SOURCE.toString(), "--db", dbFile.toString());
+        assertEquals(0, exit, "index command should exit 0");
+
+        // Query callee FQNs ordered by call_sequence for UserServiceImpl#createUser
+        List<String> calleeFqns = new ArrayList<>();
+        try (Connection conn = DriverManager.getConnection("jdbc:sqlite:" + dbFile.toAbsolutePath());
+             PreparedStatement ps = conn.prepareStatement("""
+                     SELECT n2.fqn
+                     FROM   method_node n1
+                     JOIN   call_edge   e  ON e.caller_id = n1.id
+                     JOIN   method_node n2 ON n2.id       = e.callee_id
+                     WHERE  n1.fqn = ?
+                     ORDER BY e.call_sequence
+                     """)) {
+            ps.setString(1, "com.example.service.UserServiceImpl#createUser(String, String)");
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) calleeFqns.add(rs.getString(1));
+            }
+        }
+
+        // Source order: setUsername(1) → setEmail(2) → insert(3) → selectById(4)
+        assertTrue(calleeFqns.size() >= 4, "createUser must have at least 4 callee edges");
+
+        List<String> simpleNames = calleeFqns.stream()
+                .map(fqn -> fqn.contains("#") ? fqn.substring(fqn.indexOf('#') + 1) : fqn)
+                .toList();
+
+        int setUsernameIdx = simpleNames.indexOf("setUsername(String)");
+        int setEmailIdx    = simpleNames.indexOf("setEmail(String)");
+        int insertIdx      = simpleNames.indexOf("insert(User)");
+        int selectByIdIdx  = simpleNames.indexOf("selectById(Long)");
+
+        assertTrue(setUsernameIdx >= 0, "setUsername must be a callee of createUser");
+        assertTrue(setEmailIdx    >= 0, "setEmail must be a callee of createUser");
+        assertTrue(insertIdx      >= 0, "insert must be a callee of createUser");
+        assertTrue(selectByIdIdx  >= 0, "selectById must be a callee of createUser");
+
+        assertTrue(setUsernameIdx < setEmailIdx,
+                "setUsername (seq " + setUsernameIdx + ") must precede setEmail (seq " + setEmailIdx + ")");
+        assertTrue(setEmailIdx < insertIdx,
+                "setEmail (seq " + setEmailIdx + ") must precede insert (seq " + insertIdx + ")");
+        assertTrue(insertIdx < selectByIdIdx,
+                "insert (seq " + insertIdx + ") must precede selectById (seq " + selectByIdIdx + ")");
     }
 
     // -------------------------------------------------------------------------

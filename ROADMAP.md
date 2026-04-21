@@ -43,6 +43,7 @@
 | 2.7 | **Filter external call edges** — by default, suppress edges where the callee class is not in the indexed source tree (Java SDK, third-party libs); `--include-external` flag and `index.include-external` config key opt back in | `[x]` | Filter applied at persist-time using the `allClassNodes` set; DEBT-002 unresolved `(?)` nodes also suppressed by default |
 | 2.8 | **Mermaid front-matter header** — prepend a YAML front-matter block to each `sequenceDiagram` so the diagram title and theme are embedded in the output file; title derived from the entry-point method name (or section label in `--split` mode); theme configurable via config file | `[ ]` | Front-matter format: `---\ntitle: AuraCode Trace: [MethodName]\nconfig:\n  theme: forest\n---`; Mermaid ≥ 10 required for front-matter support; `render.theme` config key to override theme |
 | 2.9 | **Auto-named `.mmd` output** — `--auto-output` flag on `render` derives the output filename from the entry-point FQN in the trace data and writes a `.mmd` file without requiring an explicit `--output`; in `--split` mode produces one `.mmd` file per section | `[ ]` | Filename derived from first caller FQN in the trace: `ClassName_methodName.mmd` (package stripped, special chars sanitised); `--output` takes precedence when both are supplied; `--auto-output` and stdout are mutually exclusive |
+| 2.10 | **Call ordering** — add `call_sequence INTEGER` to `call_edge` so edges are stored in source-code order; `getCalleeFqns` orders by this column; `trace` output and Mermaid diagrams now reflect top-to-bottom call order within each method body | `[x]` | Sequence is 1-based, reset per `MethodDeclaration`; `INSERT OR IGNORE` keeps first-occurrence sequence for repeated calls; existing DBs migrated automatically via `migrateAddColumn`; see `docs/features/feature-2.10-call-ordering.md` |
 
 ---
 
@@ -117,4 +118,4 @@ and can be dropped anywhere that has a Java 17+ runtime — no classpath setup n
 
 ---
 
-*Last updated: 2026-04-19 (Feature 2.7 complete — external call edge filtering)*
+*Last updated: 2026-04-20 (Feature 2.10 complete — call ordering)*
