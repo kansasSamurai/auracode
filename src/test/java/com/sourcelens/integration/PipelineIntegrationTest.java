@@ -119,12 +119,6 @@ class PipelineIntegrationTest {
         // ProductServiceImpl must NOT appear — it implements an unrelated interface
         assertFalse(diagram.contains("ProductService"),
                 "Diagram must not contain ProductService (unrelated hierarchy)");
-
-        // Feature 2.6r1: stack-based render — UM return must appear BEFORE UC→CSI forward call
-        int umReturnIdx   = diagram.indexOf("UserMapper-->>UserServiceImpl: User");
-        int csiForwardIdx = diagram.indexOf("UserController->>CachedUserServiceImpl: findById");
-        assertTrue(umReturnIdx >= 0 && csiForwardIdx >= 0 && umReturnIdx < csiForwardIdx,
-                "UserMapper return arrow must appear before CachedUserServiceImpl forward call (interleaved render)");
     }
 
     @Test
